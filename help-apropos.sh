@@ -6,6 +6,7 @@
 #+ expressions. This difference in functionality was an accidental design
 #+ flaw in this script. However, as a result, searching for `alias` will 
 #+ also return `unalias`.
+##   Tested on a virtualized instance of Fedora 40.
 
 
 ## Debug
