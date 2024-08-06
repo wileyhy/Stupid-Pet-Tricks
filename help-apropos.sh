@@ -1,5 +1,5 @@
 #!/bin/bash
-## help-apropos.sh
+## help-apropos.sh, version 0.1
 ##   A re-implementation written in bash of `help -s`, which is `apropos`
 #+ for bash's help builtin. Where bash's `help` builtin performs bash's
 #+ internal Pattern Matching syntax, this script accepts awk regular
