@@ -62,15 +62,12 @@ case ${#EE[@]} in
 	0)	#+ Temporary working directory
 		CC=$(date | sum | tr -d ' \t')
 		DD="$HOME/.tmp_mkhelp.sh_${CC}_$$"
-
 		mkdir -p "$DD" || exit "$LINENO"
 
 		## Parsing data
 		COLUMNS=256 help | grep ^" " > "$DD/list_help_as-is"
-
 		cut -c   -128      "$DD/list_help_as-is" > "$DD/list_col-1"
 		cut -c $((128+1))- "$DD/list_help_as-is" > "$DD/list_col-2"
-
 		sort "$DD/list_col-1" "$DD/list_col-2" > "$DD/list_col-0"
 
 		#+ Remove leading spaces
@@ -78,7 +75,6 @@ case ${#EE[@]} in
 
 		## Creating durable file
 		mv "$DD/list_col-0" "$FF" || exit "$LINENO"
-
 		: Topics file created.
 
 		## Remove working directory
