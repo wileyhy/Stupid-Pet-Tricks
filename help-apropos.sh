@@ -66,7 +66,7 @@ case ${#EE[@]} in
 
 		## Parsing data
 		COLUMNS=256 help | grep ^" " > "$DD/list_help_as-is"
-		cut -c   -128      "$DD/list_help_as-is" > "$DD/list_col-1"
+		cut -c -128 "$DD/list_help_as-is" > "$DD/list_col-1"
 		cut -c $((128+1))- "$DD/list_help_as-is" > "$DD/list_col-2"
 		sort "$DD/list_col-1" "$DD/list_col-2" > "$DD/list_col-0"
 
