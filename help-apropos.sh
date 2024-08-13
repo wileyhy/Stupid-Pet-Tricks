@@ -15,10 +15,11 @@
 ## Variables
 LC_ALL=C
 FF=~/.bash_help_topics
-if [ $# -ne 0 ]; then
+if [ $# -ne 0 ]
+then
 	strings=("$@")
-## A list of search strings for demonstration purposes.
 else
+        #+ A list of search strings for demonstration purposes.
 	strings=(builtins echo info ls man type which)
 fi
 
