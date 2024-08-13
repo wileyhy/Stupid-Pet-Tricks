@@ -72,8 +72,6 @@ case ${#EE[@]} in
 
 		#+ Remove leading spaces
 		sed -i 's/[ \t]*$//' "$DD/list_col-0"
-		# Note, for older OS X, per stackoverflow; untested
-		#sed -i '' -E 's/[ '$'\t'']+$//' "$DD/list_col-0"
 
 		## Creating durable file
 		mv "$DD/list_col-0" "$FF" || exit "$LINENO"
