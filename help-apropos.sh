@@ -6,7 +6,7 @@
 #+ expressions. This difference in functionality was an accidental design
 #+ flaw in this script. However, as a result, searching for `alias` will 
 #+ also return `unalias`.
-#+   Copyright 2024, Wiley Young
+#+   SPDX-FileCopyrightText: 2024 Wiley Young
 
 ## Debug
 #set -euxo pipefail
