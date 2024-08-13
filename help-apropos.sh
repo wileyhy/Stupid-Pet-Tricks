@@ -27,9 +27,11 @@ fi
 mapfile -d "" -t dirs < <(find ~ -type d -name '*_mkhelp.sh_*' -print0)
 
 #+ if any are found
-if [ "${#dirs[@]}" -gt 0 ]; then
+if [ "${#dirs[@]}" -gt 0 ]
+then
 	#+ for each dir name
-	for DD in "${dirs[@]}"; do
+	for DD in "${dirs[@]}"
+        do
 		#+ get the embedded value of $$, ie, the PID of the
 		#+ invoking shell
 		AA=${DD##*_}
@@ -40,7 +42,8 @@ if [ "${#dirs[@]}" -gt 0 ]; then
 
 		#+ If the PID is still active, then continue to the next
 		#+ found dir
-		if [ -n "$BB" ]; then
+		if [ -n "$BB" ]
+                then
 			continue
 		fi
 
