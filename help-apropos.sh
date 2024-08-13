@@ -7,6 +7,7 @@
 #+ flaw in this script. However, as a result, searching for `alias` will 
 #+ also return `unalias`.
 #+   SPDX-FileCopyrightText: 2024 Wiley Young
+#+   SPDX: GPL-3.0-or-later
 
 ## Debug
 #set -euxo pipefail
