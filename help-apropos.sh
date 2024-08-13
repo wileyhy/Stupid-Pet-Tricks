@@ -23,8 +23,7 @@ else
 	strings=(builtins echo info ls man type which)
 fi
 
-## Remove dead temp directories
-#+ Get a list of directories
+## Remove dead temp directories: Get a list of directories
 mapfile -d "" -t dirs < <(find ~ -type d -name '*_mkhelp.sh_*' -print0)
 
 #+ if any are found
