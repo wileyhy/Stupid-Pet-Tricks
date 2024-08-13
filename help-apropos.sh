@@ -96,8 +96,10 @@ esac
 
 ## Print info from the topics file (Note, using awk regex rather than 
 #+ bash's pattern matching syntax. 
-for HH in "${strings[@]}"; do
+for HH in "${strings[@]}"
+do
 	awk -v regex="$HH" '$1 ~ regex { print $0 }' "$FF"
-done | sort -u
+done \
+        | sort -u
 
 exit 00
