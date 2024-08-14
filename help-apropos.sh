@@ -9,7 +9,6 @@
 #+   SPDX-FileCopyrightText: 2024 Wiley Young
 #+   SPDX-License-Identifier: GPL-3.0-or-later
 
-
 ## Variables, etc
 #+   A list of search strings, either from the CLI or by default for
 #+ demonstration purposes.
@@ -33,22 +32,18 @@ then
 	for DD in "${dirs[@]}"
         do
 		#+ Get the embedded value of $$, ie, the PID of the
-		#+ invoking shell
+		#+ invoking shell, then look to see whether the PID of 
+                #+ the found dir is still active
 		AA=${DD##*_}
-
-		#+ Then look to see whether the PID of the found dir is
-		#+ still active
 		BB=$(ps aux | awk -v dd="$AA" '$2 ~ dd')
 
-		#+ If the PID is still active, then continue to the next
-		#+ found dir
+		#+ If an active PID is found, then continue to the next
+		#+ found dir, ie, the next loop, or, if the found dir is 
+                #+ not from some active script, then remove said found dir
 		if [ -n "$BB" ]
                 then
 			continue
 		fi
-
-		#+ Or, if the found dir is not from some active script,
-                #+ then remove said found dir
 		rm -fr "$DD" || exit "$LINENO"
 	done
 fi
