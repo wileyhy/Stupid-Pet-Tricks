@@ -27,17 +27,17 @@ FF=~/.bash_help_topics
 ## Remove dead temp directories: Get a list of directories
 mapfile -d "" -t dirs < <(find ~ -type d -name '*_mkhelp.sh_*' -print0)
 
-#+ if any are found
+#+ If any are found
 if [ "${#dirs[@]}" -gt 0 ]
 then
-	#+ for each dir name
+	#+ For each dir name
 	for DD in "${dirs[@]}"
         do
-		#+ get the embedded value of $$, ie, the PID of the
+		#+ Get the embedded value of $$, ie, the PID of the
 		#+ invoking shell
 		AA=${DD##*_}
 
-		#+ then look to see whether the PID of the found dir is
+		#+ Then look to see whether the PID of the found dir is
 		#+ still active
 		BB=$(ps aux | awk -v dd="$AA" '$2 ~ dd')
 
@@ -48,7 +48,7 @@ then
 			continue
 		fi
 
-		#+ or, if the found dir is not from some active script,
+		#+ Or, if the found dir is not from some active script,
                 #+ then remove said found dir
 		rm -fr "$DD" || exit "$LINENO"
 	done
