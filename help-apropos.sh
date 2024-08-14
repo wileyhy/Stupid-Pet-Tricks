@@ -70,16 +70,16 @@ case ${#EE[@]} in
 
 		## Parse data and remove leading spaces
 		COLUMNS=256 builtin help | 
-  			grep ^" " > "$DD/list_help_as-is"
-		cut -c -128 "$DD/list_help_as-is" > "$DD/list_col-1"
-		cut -c $((128+1))- "$DD/list_help_as-is" > "$DD/list_col-2"
-		sort "$DD/list_col-1" "$DD/list_col-2" > "$DD/list_col-0"
-		sed -i 's/[ \t]*$//' "$DD/list_col-0"
+  			grep ^" " > "$DD/o"
+		cut -c -128 "$DD/o" > "$DD/c1"
+		cut -c $((128+1))- "$DD/o" > "$DD/c2"
+		sort "$DD/c1" "$DD/c2" > "$DD/c0"
+		sed -i 's/[ \t]*$//' "$DD/c0"
 
 		## Create a durable file and remove working directory. Note,
 		#+ `:` is a Thompson-style comment - readable when xtrace 
 		#+ is enabled.
-		mv "$DD/list_col-0" "$FF" || 
+		mv "$DD/c0" "$FF" || 
   			exit "$LINENO"
                 : Topics file created.
 		rm -fr "$DD" || 
