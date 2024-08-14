@@ -59,9 +59,8 @@ mapfile -d "" -t EE < <(
     find ~ -maxdepth 1 -type f -name "*${FF##*/}*" -print0)
 
 case ${#EE[@]} in
-	#+ If not, then create one.
-	0)	#+ Temporary working directory
-		CC=$(date | sum | tr -d ' \t')
+	#+ If not, then create one. Create a temporary working directory
+	0)	CC=$(date | sum | tr -d ' \t')
 		DD="$HOME/.tmp_mkhelp.sh_${CC}_$$"
 		mkdir -p "$DD" || exit "$LINENO"
 
