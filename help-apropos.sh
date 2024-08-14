@@ -72,12 +72,14 @@ case ${#EE[@]} in
 
 		## Creating durable file
 		mv "$DD/list_col-0" "$FF" || exit "$LINENO"
-		: Topics file created.
+  
+		## Note, Thompson-style comment; readable when xtrace is enabled.
+                : Topics file created.
 
 		## Remove working directory
 		rm -fr "$DD" || exit "$LINENO"
 		;;
-	## Note, Thompson-style comment; readable when xtrace is enabled.
+	
 	1)	: Topics file exists.
 		;;
 	## Multiple files
