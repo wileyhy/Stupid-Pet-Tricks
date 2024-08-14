@@ -101,7 +101,7 @@ esac
 for HH in "${strings[@]}"
 do
 	awk -v regex="$HH" '$1 ~ regex { print $0 }' "$FF"
-done \
-        | sort -u
+done |
+        sort -u
 
 exit 00
