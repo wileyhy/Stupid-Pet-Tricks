@@ -1,6 +1,6 @@
 #!/bin/bash
 ## help-apropos.sh, version 0.1
-##   A re-implementation written in bash of `help -s`, which is `apropos`
+#+   A re-implementation written in bash of `help -s`, which is `apropos`
 #+ for bash's help builtin. Where bash's `help` builtin performs bash's
 #+ internal Pattern Matching syntax, this script accepts awk regular
 #+ expressions. This difference in functionality was an accidental design
@@ -9,12 +9,11 @@
 #+   SPDX-FileCopyrightText: 2024 Wiley Young
 #+   SPDX-License-Identifier: GPL-3.0-or-later
 
-## Debug
-#set -euxo pipefail
 
-## Variables
+## Variables, etc
 #+   A list of search strings, either from the CLI or by default for
 #+ demonstration purposes.
+#set -euxo pipefail
 LC_ALL=C
 if [ $# -ne 0 ]
 then
