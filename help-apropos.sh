@@ -13,15 +13,16 @@
 #set -euxo pipefail
 
 ## Variables
-LC_ALL=C
-FF=~/.bash_help_topics
+#+   A list of search strings, either from the CLI or by default for
+#+ demonstration purposes.
 if [ $# -ne 0 ]
 then
 	strings=("$@")
 else
-        #+ A list of search strings for demonstration purposes.
 	strings=(builtins echo info ls man type which)
 fi
+LC_ALL=C
+FF=~/.bash_help_topics
 
 ## Remove dead temp directories: Get a list of directories
 mapfile -d "" -t dirs < <(find ~ -type d -name '*_mkhelp.sh_*' -print0)
