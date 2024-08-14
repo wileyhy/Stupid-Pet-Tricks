@@ -15,13 +15,13 @@
 ## Variables
 #+   A list of search strings, either from the CLI or by default for
 #+ demonstration purposes.
+LC_ALL=C
 if [ $# -ne 0 ]
 then
 	strings=("$@")
 else
 	strings=(builtins echo info ls man type which)
 fi
-LC_ALL=C
 FF=~/.bash_help_topics
 
 ## Remove dead temp directories: Get a list of directories
