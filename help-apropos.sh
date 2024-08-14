@@ -60,13 +60,10 @@ case ${#EE[@]} in
 		sort "$DD/list_col-1" "$DD/list_col-2" > "$DD/list_col-0"
 		sed -i 's/[ \t]*$//' "$DD/list_col-0"
 
-		## Creating durable file
+		## Create durable file and remove working directory. Note, `:` is
+                #+ a Thompson-style comment - readable when xtrace is enabled.
 		mv "$DD/list_col-0" "$FF" || exit "$LINENO"
-  
-		## Note, Thompson-style comment; readable when xtrace is enabled.
                 : Topics file created.
-
-		## Remove working directory
 		rm -fr "$DD" || exit "$LINENO"
 		;;
 	#+ If one file exists (Thompson-style comment)
@@ -84,11 +81,10 @@ case ${#EE[@]} in
 		;;
 esac
 
-## Print info from the topics file (Note, using awk regex rather than 
-#+ bash's pattern matching syntax. 
+## Print info from the topics file and exit. (Note, using awk regex rather than 
+#+ bash's pattern matching syntax.) 
 for HH in "${strings[@]}"; do
 	awk -v regex="$HH" '$1 ~ regex { print $0 }' "$FF"
 done |
         sort -u
-
 exit 00
