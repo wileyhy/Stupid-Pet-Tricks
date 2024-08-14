@@ -4,5 +4,4 @@
 
 ## Contents 
 
-help-apropos.sh -- A re-implementation written in bash of `help -s`, which is `apropos`
-for bash's help builtin.
+help-alias.sh -- Also prints the help topics alone, without any descriptions of CLI arguments.
