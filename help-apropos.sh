@@ -58,7 +58,7 @@ fi
 mapfile -d "" -t EE < <(
     find ~ -maxdepth 1 -type f -name "*${FF##*/}*" -print0)
 case ${#EE[@]} in
-	#+ If not, then create one. Create a temporary working directory
+	#+ If no files exist, then create one. Create a temporary working directory
 	0)	CC=$(date | sum | tr -d ' \t')
 		DD="$HOME/.tmp_mkhelp.sh_${CC}_$$"
 		mkdir -p "$DD" || exit "$LINENO"
@@ -79,17 +79,20 @@ case ${#EE[@]} in
 		## Remove working directory
 		rm -fr "$DD" || exit "$LINENO"
 		;;
-	
+	#+ If one file exists (Thompson-style comment)
 	1)	: Topics file exists.
 		;;
-	## Multiple files
+  
+	#+ If multiple files exist
 	[2-9]|[1-9][0-9]+)
 		echo Multiple topics files exist. Exiting.
 		ls -la "${EE[@]}"
 		exit "$LINENO"
 		;;
-	*)	echo Error. Exiting.
-		exit "$LINENO"
+
+        #+ Catch any errors
+	*)	echo Error. Exiting. 
+                exit "$LINENO"
 		;;
 esac
 
