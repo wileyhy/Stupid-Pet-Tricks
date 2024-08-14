@@ -9,7 +9,7 @@
 #+   SPDX-License-Identifier: GPL-3.0-or-later
 
 ## Variables, etc: define a list of search strings, either from the CLI  
-#+ or by default for demonstration purposes.
+#+ or by default for demonstration purposes; \FF is a durable file name
 #set -euxo pipefail
 LC_ALL=C
 if [ $# -ne 0 ]
