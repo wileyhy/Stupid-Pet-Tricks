@@ -57,7 +57,6 @@ fi
 ## Does a valid help_topics file exist?
 mapfile -d "" -t EE < <(
     find ~ -maxdepth 1 -type f -name "*${FF##*/}*" -print0)
-
 case ${#EE[@]} in
 	#+ If not, then create one. Create a temporary working directory
 	0)	CC=$(date | sum | tr -d ' \t')
