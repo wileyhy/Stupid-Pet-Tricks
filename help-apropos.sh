@@ -14,8 +14,7 @@
 #+ demonstration purposes.
 #set -euxo pipefail
 LC_ALL=C
-if [ $# -ne 0 ]
-then
+if [ $# -ne 0 ]; then
 	strings=("$@")
 else
 	strings=(builtins echo info ls man type which)
@@ -26,11 +25,9 @@ FF=~/.bash_help_topics
 mapfile -d "" -t dirs < <(find ~ -type d -name '*_mkhelp.sh_*' -print0)
 
 #+ If any are found
-if [ "${#dirs[@]}" -gt 0 ]
-then
+if [ "${#dirs[@]}" -gt 0 ]; then
 	#+ For each dir name
-	for DD in "${dirs[@]}"
-        do
+	for DD in "${dirs[@]}"; do
 		#+ Get the embedded value of $$, ie, the PID of the
 		#+ invoking shell, then look to see whether the PID of 
                 #+ the found dir is still active
@@ -40,8 +37,7 @@ then
 		#+ If an active PID is found, then continue to the next
 		#+ found dir, ie, the next loop, or, if the found dir is 
                 #+ not from some active script, then remove said found dir
-		if [ -n "$BB" ]
-                then
+		if [ -n "$BB" ]; then
 			continue
 		fi
 		rm -fr "$DD" || exit "$LINENO"
@@ -76,14 +72,12 @@ case ${#EE[@]} in
 	#+ If one file exists (Thompson-style comment)
 	1)	: Topics file exists.
 		;;
-  
 	#+ If multiple files exist
 	[2-9]|[1-9][0-9]+)
 		echo Multiple topics files exist. Exiting.
 		ls -la "${EE[@]}"
 		exit "$LINENO"
 		;;
-
         #+ Catch any errors
 	*)	echo Error. Exiting. 
                 exit "$LINENO"
@@ -92,8 +86,7 @@ esac
 
 ## Print info from the topics file (Note, using awk regex rather than 
 #+ bash's pattern matching syntax. 
-for HH in "${strings[@]}"
-do
+for HH in "${strings[@]}"; do
 	awk -v regex="$HH" '$1 ~ regex { print $0 }' "$FF"
 done |
         sort -u
