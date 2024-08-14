@@ -57,8 +57,8 @@ mapfile -d "" -t EE < <(
     find ~ -maxdepth 1 -type f -name "*${FF##*/}*" -print0
 )
 case ${#EE[@]} in
-	#+ If no files exist then create one; use a new temporary working 
-	#+ directory
+	#+ If no files exist then create one. Use a new temporary working 
+	#+ directory with a unique hash based on the current time
 	0)	CC=$(
  			date | 
  				sum | 
