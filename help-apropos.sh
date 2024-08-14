@@ -73,7 +73,7 @@ case ${#EE[@]} in
   			grep ^" " > "$DD/o"
 		cut -c -128 "$DD/o" > "$DD/c1"
 		cut -c $((128+1))- "$DD/o" > "$DD/c2"
-		sort "$DD/c1" "$DD/c2" > "$DD/c0"
+		sort -u "$DD/c1" "$DD/c2" > "$DD/c0"
 		sed -i 's/[ \t]*$//' "$DD/c0"
 
 		## Create a durable file and remove working directory. Note,
