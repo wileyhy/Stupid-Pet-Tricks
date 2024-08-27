@@ -10,27 +10,27 @@
 #+   SPDX-FileCopyrightText: 2024 Wiley Young
 #+   SPDX-License-Identifier: GPL-3.0-or-later
 #    shellcheck disable=SC2059,SC2317
-#+   Version 0.3
+#+   Version 0.4
 script_name="help-alias.sh"
 
 
 ## Section A
-#+   Variables, etc: define a list of search \script_strings, either from the CLI
-#+ or by default for demonstration purposes; \CC_AA is a durable file name
-set -x
+#+   Variables, etc
+#set -x
 set -euo pipefail
-LC_ALL=C
-script_traps_1=( SIG{INT,QUIT,USR{1,2},STOP} )
-script_traps_2=( EXIT SIGTERM )
+shopt -s checkwinsize
 
-## Get CLI input as array \script_strings
-if 	(( $# != 0 ))
+#+ \COLUMNS has been inconsistently inherited from parent processes
+LC_ALL=C
+if 	[[ -z ${COLUMNS:=} ]]
 then
-	script_strings=("$@")
-else
-	script_strings=(echo builtin type info ls man which)
+	COLUMNS=$(
+		stty -a |
+			tr ';' '\n' |
+			awk '$1 ~ /columns/ { print $2 }'
+	)
 fi
-export script_strings
+export COLUMNS
 
 ## Define TMPDIR
 script_poss_temp_dirs=(
@@ -58,8 +58,79 @@ do
 	fi
 done
 
-## Make sure `find` only returns items that \USER can r/w/x
-script_find_args=( \( -user "$UID" -a -group "$(id -g)" \) )
+## Make sure `find` only returns items that \USER can r/w/x, 
+#+ and that any future changes to user ID can only occur in 
+#+ one place
+script_find_args=( '(' -user "$UID" -a -group "$(id -g)" ')' )
+
+## Define traps
+script_traps_1=( SIG{INT,QUIT,STOP,USR{1,2}} )
+script_traps_2=( EXIT SIGTERM )
+
+function_trap()
+{
+	## Reset traps
+	trap - "${script_traps_1[@]}" "${script_traps_2[@]}"
+
+	## Remove any & all leftover temporary directories
+	#+   Get a list of directories
+	local -a BB_VV
+	
+	mapfile -d "" -t BB_VV < <(
+		find "${script_poss_temp_dirs[@]}" "${script_find_args[@]}" -type d -name '*_'"${script_name}"'_*' -print0 2>/dev/null
+	)
+
+	#+ If any are found
+	:
+	: "Directory count, line $LINENO"
+	if 	(( "${#BB_VV[@]}" > 0 ))
+	then
+		#+ For each directory name
+		local BB_WW BB_YY BB_ZZ BB_XX
+		BB_WW=$( COLUMNS=127 ps aux 2>&1 )
+
+		for 	BB_XX in "${BB_VV[@]}"
+		do
+			#+ Get the embedded value of the PID of the shell 
+			#+ that invoked `mkdir`
+			BB_YY=${BB_XX##*_}
+		
+			#+ then look to see whether that PID is still active.
+			#+ If an active PID is found, then get the process's
+			#+ user
+			BB_ZZ=$( 
+				awk -v aa="$BB_YY" '$2 == aa { print $1 }' \
+					<<< "$BB_WW" 
+			)
+
+			#+ If the found process's user is the same as the 
+			#+ user that invoked this script, and if the found 
+			#+ PID is not the PID for this script, then another 
+			#+ process of this script exists, so skip it. 
+			if	[[ $BB_ZZ == "$USER" ]] &&
+				! [[ $BB_YY == "$$" ]] 
+			then
+				continue
+			fi
+
+			#+ Remove said found directory
+			rm --one-file-system --preserve-root=all -fvr -- "$BB_XX" ||
+				exit "$LINENO"
+		done
+	fi
+}
+trap 'function_trap; kill -s SIGINT $$' "${script_traps_1[@]}"
+#trap 'function_trap; exit 0' 		"${script_traps_2[@]}"
+
+## Define a list of search \script_strings, either from the CLI
+#+ or by default for demonstration purposes
+if 	(( $# != 0 ))
+then
+	script_strings=("$@")
+else
+	script_strings=(echo builtin type info ls man which)
+fi
+export script_strings
 
 #+ Get the current list of help topics from bash
 #+   Note, `sort -u` removes lines from output of `compgen` in this case
@@ -69,19 +140,6 @@ mapfile -t script_all_topix < <(
 		uniq
 )
 export script_all_topix
-
-#+ \COLUMNS has been inconsistently inherited from parent processes
-shopt -s checkwinsize
-
-if 	[[ -z ${COLUMNS:=} ]]
-then
-	COLUMNS=$(
-		stty -a |
-			tr ';' '\n' |
-			awk '$1 ~ /columns/ { print $2 }'
-	)
-fi
-export COLUMNS
 
 ## Define temporary directory
 AA_YY=$( 
@@ -98,60 +156,6 @@ unset AA_XX AA_YY
 
 
 ## Section B
-#+   Define traps
-function_trap()
-{
-	## Reset traps
-	trap - "${script_traps_1[@]}"
-	trap - "${script_traps_2[@]}"
-
-	## Remove any & all leftover temporary directories
-	#+   Get a list of directories
-	local -a BB_VV
-	
-	mapfile -d "" -t BB_VV < <(
-		find "${script_poss_temp_dirs[@]}" "${script_find_args[@]}" -type d \
-			-name '*_'"${script_name}"'_*' -print0 2>/dev/null
-	)
-
-	#+ If any are found
-	:
-	: "Directory count, line $LINENO"
-	if 	(( "${#BB_VV[@]}" > 0 ))
-	then
-		#+ For each directory name
-		local BB_WW BB_YY BB_ZZ BB_XX
-		BB_WW=$( ps aux 2>&1 )
-
-		for 	BB_XX in "${BB_VV[@]}"
-		do
-			#+ Get the embedded value of $$, ie, the PID of the
-			#+ invoking shell, then look to see whether the PID
-			#+ from the found directory is still active
-			BB_YY=${BB_XX##*_}
-
-			#+ If an active PID is found, then continue to the
-			#+ next found directory, ie, the next loop
-			BB_ZZ=$( awk -v aa="$BB_YY" '$2 == aa' \
-				<<< "$BB_WW" )
-			
-			if 	[[ -n "${BB_ZZ:0:8}" ]]
-			then
-				continue
-			fi
-
-			#+ Remove said found directory
-			rm -fr "$BB_XX" ||
-				exit "$LINENO"
-		done
-	fi
-}
-trap 'function_trap; kill -s SIGINT $$' "${script_traps_1[@]}"
-trap 'function_trap; exit 0' 		"${script_traps_2[@]}"
-
-
-
-## Section C
 #+   List short descriptions of specified builtins
 if 	[[ ${script_strings[0]:-""} = "-s" ]]
 then
@@ -159,19 +163,35 @@ then
 	script_strings=("${script_strings[@]}")
 
 	## Does a valid help_topics file exist?
-	mapfile -d "" -t CC_XX < <(
-		find "${script_poss_temp_dirs[@]}" -maxdepth 1 "${script_find_args[@]}" \
-			-mtime -7 -type f -name "*${CC_AA##*/}*" -print0
+	mapfile -d "" -t CC_WW < <(
+		find "${script_poss_temp_dirs[@]}" -maxdepth 1 "${script_find_args[@]}" -type f -name "*${CC_AA##*/}*" -print0 2>/dev/null
 	)
 
-	case ${#CC_XX[@]} in
-		#+ If no files exist then create one. Use a new temporary
-		#+ working directory with a unique hash based on the time
-		(0)  	mkdir "$AA_ZZ" ||
-				exit "$LINENO"
+	## Create the temporary directory
+	mkdir "$AA_ZZ" ||
+		exit "$LINENO"
 
-			## Parse data
-			COLUMNS=256 builtin help |
+	## Any help topics file should be at most one day old.
+	if	(( ${#CC_WW[@]} > 0 ))
+	then
+		timefile="$AA_ZZ/.t"
+		touch -mt "$( date -d yesterday +%Y%m%d%H%M.%S )" "$timefile"
+		
+		for	CC_XX in "${CC_WW[@]}"
+		do
+			if	! [[ $CC_XX -nt "$timefile" ]]
+			then
+				rm --one-file-system --preserve-root=all -fv -- "$CC_XX"
+			fi
+		done
+		rm --one-file-system --preserve-root=all -fv -- "$timefile"
+		unset timefile
+	fi
+
+	## Depending on the number of files found and remaining...
+	case ${#CC_WW[@]} in
+		#+ If no files exist then create one. Parse data
+		(0)  	COLUMNS=256 builtin help |
 				grep ^" " 		> "$AA_ZZ/o"
 			cut -c -128 "$AA_ZZ/o" 		> "$AA_ZZ/c1"
 			cut -c $((128+1))- "$AA_ZZ/o" 	> "$AA_ZZ/c2"
@@ -184,22 +204,18 @@ then
 
 			## Make a durable file.
 			cp -a "$AA_ZZ/c0" "$CC_AA"
-
-		       	## Remove working directory.
-			rm -fr "$AA_ZZ" ||
-				exit "$LINENO"
 			;;#
 
 		#+ If one file exists (Thompson-style comments)
 		(1)  	:
 			: Topics file exists.
+			CC_AA="${CC_WW[*]}"
 			:
-			CC_AA="${CC_XX[*]}"
 			;;#
 
 		#+ If multiple files exist
-		(*) 	echo Multiple topics files exist. Exiting.
-			ls -la "${CC_XX[@]}"
+		(*) 	echo Removing multiple topics files, and exiting.
+			rm --one-file-system --preserve-root=all -fv -- "${CC_WW[@]}"
 			exit "$LINENO"
 			;;#
 	esac
@@ -219,35 +235,39 @@ then
 		## If the string appears in the first column / at the
 		#+ beginning of \CC_AA, then print that line
 
-		set -x
+			#set -x
+			#declare -p script_strings
 
 		for 	CC_YY in "${script_strings[@]}"
 		do
-			if 	[[ $CC_YY == @(%|\(\(|.|:|\[|\[\[|\{) ]]
+			if 	[[ $CC_YY == @($|%|^|\(|\(\(|.|\[|\[\[|\{|\\|\|) ]]
 			then 
-				printf -v CC_ZZ '[%s]' "$CC_YY"
+				CC_ZZ=$( sed 's,.,\\\\&,g' <<< "$CC_YY" )
 			else
 				CC_ZZ="$CC_YY"
 			fi
 
-			if 	[[ $CC_ZZ == "[%]" ]]
+			if 	[[ $CC_ZZ == \\\\% ]]
 			then 
 				CC_ZZ='job_spec'
 			fi
+				declare -p CC_ZZ script_strings
 
-			awk -v yy="$CC_ZZ" '$1 ~ yy { print " " $0 }' \
-				"$CC_AA"
+			awk -v yy="$CC_ZZ" '$1 ~ yy { print " " $0 }' "$CC_AA"
 		done |
 			sort -d |
 			uniq |
 			cut -c "-$(( COLUMNS - 5 ))" |
 			more -e
 	fi
-	unset CC_AA CC_XX CC_YY CC_ZZ
+	unset CC_AA CC_WW CC_YY CC_ZZ
+
+		echo
+		echo ${Halt:?}
 
 
 
-## Section D
+## Section C
 #+   Additional option: '-l' for "list;" '-lh' and '-lv' for horizontal
 #+ and vertical lists, respectively. Defaults to vertical.
 elif	
@@ -255,14 +275,12 @@ elif
 then
 	unset "script_strings[0]"
 	script_strings=("${script_strings[@]}")
-
 	:
 	: 'Initialize to zero...'
 	: '...Carriage Return Index'
 	cr_indx=0
 	: '...Topic Index'
 	tpc_indx=0
-
 	:
 	: 'Posparm \2 can be a filter. If empty, then let it be any char'
 	if 	[[ -z ${2:-} ]]
@@ -272,11 +290,9 @@ then
 
 	## Bug, reduce the length of the list according to posparms, eg,
 	#+ 'ex' or 'sh'
-
 	:
 	: 'Get total Number of Help Topics for this run of this script'
 	ht_count=${#script_all_topix[@]}
-
 	:
 	: 'Define Maximum String Length of Topics'
 	strlen=$(
@@ -284,14 +300,12 @@ then
 			awk '{if (x < length($0)) x = length($0)}
 					END {print x}'
 	)
-
 	:
 	: 'Define Column Width'
 	col_width=$(( strlen + 3 ))
 	printf_format_string=$(
 		printf '%%-%ds' "${col_width}"
 	)
-
 	:
 	: 'Define maximum and total numbers of columns'
 	max_columns=$(( ${COLUMNS:-80} / col_width ))
@@ -327,21 +341,17 @@ then
 	elif	:
 		: 'Print a list favoring a vertical sequence'
 		[[ $1 = @(-l|-lv) ]]
-	then
-		:
+	then	:
 		: 'Get the Number of Full Rows'
 		full_rows=$(( ht_count / all_columns ))
-
 		:
 		: 'Get the number of topics in any partial row (modulo)'
 		row_rem=$(( ht_count % all_columns ))
-
 		:
 		: 'Record whether there is a Partial Row'
 		part_rows=0
 		(( row_rem > 0 )) &&
 			part_rows=1
-
 		:
 		: 'Get the total number of Rows'
 		all_rows=$(( full_rows + part_rows ))
@@ -397,7 +407,7 @@ then
 
 
 
-## Section E
+## Section D
 #+   If the script's first operand is neither a '-s' nor a '-l*'
 else
 		#set -x
