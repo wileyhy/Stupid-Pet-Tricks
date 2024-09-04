@@ -1,5 +1,5 @@
 #!/bin/bash
-#! Version 0.5
+#! Version 0.6
 #!   A re-implementation of `help -s`, `apropos` for bash's help builtin,
 #! written in bash 5.2.
 #!   There is an additional option added: '-l', for listing help topics.
@@ -13,14 +13,14 @@
 
 : '#########  Section A  #########'
 
-: '## Variables, etc'
-: '## Note, commands starting with \:\ (colons) are Thompson-style comments'
+: '## Variables, etc.'
+#! Note, \:\ (colon) commands are Thompson-style comments.
 script_name="help-alias.sh"
 #set -x
 set -euo pipefail
 shopt -s checkwinsize
 
-: '#+ \COLUMNS has been inconsistently inherited from parent processes'
+: '#+ \COLUMNS has been inconsistently inherited from parent processes.'
 LC_ALL=C
 if 	[[ -z ${COLUMNS:=} ]]
 then
@@ -32,94 +32,209 @@ then
 fi
 export COLUMNS
 
-: '#+ Define TMPDIR'
-script_poss_temp_dirs=(
-	/tmp/
-	/var/tmp/
-	/usr/tmp/
-	/usr/local/tmp/
-	"$HOME/tmp/"
-	"$HOME/"
-)
-
-for 	AA_XX in "${script_poss_temp_dirs[@]}"
-do
-	if 	[[ -d ${AA_XX} ]] &&
-		[[ -w $AA_XX ]]
-	then
-		: '#+ Note, if \TMPDIR is defined, it will stay the same'
-		TMPDIR="${TMPDIR:=$AA_XX}"
-		break
-	else
-		continue
-	fi
-done
-
-: '#+ Executable \find\ should only returns items that \USER can r/w/x'
-: '#+ Note, make sure these options can only be changed one place'
+: '#+ Executable \find\ should only return items that \USER can r/w/x.'
+#! Note, make sure these options can only be changed one place.
 script_find_args=( '(' -user "$UID" -a -group "$(id -g)" ')' )
 
-: '## Define traps'
-script_traps_1=( SIG{INT,QUIT,STOP,USR{1,2}} )
-script_traps_2=( EXIT SIGTERM )
+#! Note, define this rm command in just one place, to avoid any
+#! inconsistencies
+script_rm_cmd=( rm --one-file-system --preserve-root=all -f )
 
-: '#+ define function_trap()'
-: '#+ Note, function definitions are not visible in xtrace'
+: '## Define TMPDIR.'
+#! Note, defining directories with a trailing forward slash will effect
+#!   whether \[[\, \test\, \[\ and \stat\ dereference symlinks. However,
+#!   \realpath -e\ will still resolve such strings correctly.
+: '#+ From a list of possible values of TMPDIR, ordered by preference...'
+AA_UU=(
+	/tmp
+	/var/tmp
+	/usr/tmp
+	/usr/local/tmp
+	"$HOME/tmp"
+	/dev/shm
+	"$HOME"
+)
+
+: '#+ From this list, above, generate a list of known temporary directories'
+#! Note, this list will be used later as search paths for \find\
+for 	AA_WW in "${AA_UU[@]}"
+do
+	: '#+ Get a reliable absolute path'
+	if 	AA_VV=$( realpath -e "${AA_WW}" 2>/dev/null )
+	then
+		: '#+ If the output of \realpath\ is a writeable'
+		: '#+ directory and not a symlink'
+		if	[[ -n ${AA_VV} ]] &&
+			[[ -d ${AA_VV} ]] &&
+			[[ -w ${AA_VV} ]] &&
+			! [[ -h ${AA_VV} ]]
+		then
+			: '#+ Begin by assuming all values will be added.'
+			AA_ZZ=yes
+
+			for 	AA_TT in "${script_temp_dirs[@]}"
+			do
+				: '#+ Does the new directory match an'
+				: '#+ existing directory?'
+				if 	[[ ${AA_VV} == "${AA_TT}" ]]
+				then
+					: '#+ If yes, do not add that value'
+					AA_ZZ=no
+				else
+					: '#+ If no, keep iterating'
+					continue
+				fi
+			done
+
+			: '#+ If the entire list has iterated without'
+			: '#+ finding a match, then add it to the list'
+			if 	[[ ${AA_ZZ} == yes ]]
+			then
+				script_temp_dirs+=( "${AA_VV}" )
+			fi
+		fi
+	fi
+done
+unset AA_TT AA_UU AA_VV AA_WW AA_ZZ
+
+	#declare -p script_temp_dirs #<>
+	#echo "${Halt:?}" #<>
+
+: '#+ Finally define TMPDIR.'
+if	[[ ${#script_temp_dirs[@]} -ne 0 ]]
+then
+	TMPDIR="${TMPDIR:="${script_temp_dirs[0]}"}"
+else
+	echo Error
+	exit "$LINENO"
+fi
+	#declare -p TMPDIR #<>
+	#echo "${Halt:?}" #<>
+	#set -x #<>
+
+: '## Define temporary directory'
+#! Note, format serves as a positive lock mechanism
+AA_hash=$(
+	date |
+		sum |
+		tr -d ' \t'
+)
+script_tmpdr="${TMPDIR:?}/.temp_${script_name}_hash-${AA_hash}_pid-$$.d"
+declare -rx script_tmpdr AA_hash
+
+
+: '#+ Create the temporary directory (used for "time file," etc.)'
+mkdir "$script_tmpdr" ||
+	exit "$LINENO"
+
+: '## Define temporary data file'
+script_tmpfl="$TMPDIR/.bash_help_topics"
+
+: '## Define traps.'
+script_traps_1=( SIG{INT,QUIT,STOP,TERM,USR{1,2}} )
+script_traps_2=( EXIT )
+
+: '#+ Define \function_trap()\.'
+#! Note, definition of functions is not visible in xtrace.
 function_trap()
 {
-	: '## Reset traps'
+	#local -; set -x #<>
+
+	: '## Reset traps.'
 	trap - "${script_traps_1[@]}" "${script_traps_2[@]}"
 
-	: '## Remove any & all leftover temporary directories'
-	local -a BB_VV
+	: '## Remove any & all leftover temporary directories.'
+	local -a TR_list
 
-	: '#+ Get a list of directories'
-	mapfile -d "" -t BB_VV < <(
-		find "${script_poss_temp_dirs[@]}" \
-			"${script_find_args[@]}" -type d \
-			-name '*_'"${script_name}"'_*' -print0 2>/dev/null
+		#declare -p AA_UU script_find_args #<>
+		#declare -p script_name #<>
+
+	: '#+ Get a list of directories.'
+	mapfile -d "" -t TR_list < <(
+		find "${script_temp_dirs[@]}" "${script_find_args[@]}" \
+			-type d -name '*temp_'"${script_name}"'_*.d' \
+			-print0 2>/dev/null
 	)
+
+		#echo "${Halt:?}" #<>
+		#declare -p TR_list
 
 	: '#+ If any are found...'
 
-	: "#+ Directory count, line $LINENO"
-	if 	(( "${#BB_VV[@]}" > 0 ))
+	: "#+ Directory count (line $LINENO)."
+	if 	(( "${#TR_list[@]}" > 0 ))
 	then
 		: '#+ For each directory name'
-		local BB_XX BB_WW BB_YY BB_ZZ
-		BB_WW=$( COLUMNS=127 ps aux 2>&1 )
+		local TR_XX TR_YY
 
-		for BB_XX in "${BB_VV[@]}"
+
+		for TR_XX in "${TR_list[@]}"
 		do
-			: '#+ Get the embedded value of the PID'
-			: '#+ ...of the shell that invoked \mkdir\...'
-			BB_YY=${BB_XX##*_}
-
-			: '#+ If a match is found, get the process\s user'
-			BB_ZZ=$(
-				awk -v aa="$BB_YY" '$2 == aa { print $1 }' \
-					<<< "$BB_WW"
-			)
-
-			: '#+ When dup proc. of script is found, \continue'
-			: '#+ If the \mkdir\ process\s user\s the same as'
-			: '#+ user that invoked this script, and if found'
-			: '#+ PID is not the PID for this script, then...'
-			if 	[[ $BB_ZZ == "$USER" ]] &&
-				! [[ $BB_YY == "$$" ]]
+			: '#+ If the directory is clearly from this run of'
+			: '#+ this script, then delete the directory.'
+			if 	grep -qe "${script_tmpdr}" \
+					-e "hash-${AA_hash}" \
+					<<< "${TR_XX}"
 			then
+				"${script_rm_cmd[@]}" -r -- "${TR_XX}" ||
+					exit "${LINENO}"
 				continue
-			fi
 
-			: '#+ Otherwise, remove said found directory'
-			rm --one-file-system --preserve-root=all -fvr -- \
-					"$BB_XX" ||
-				exit "$LINENO"
+			elif
+				: '#+ If the directory is clearly a'
+				: '#+ previous run of this script, then'
+				: '#+ delete the directory.'
+				grep -qEe 'hash-[0-9]{5,7}_pid-[0-9]{3,9}' \
+					<<< "${TR_XX}"
+			then
+				"${script_rm_cmd[@]}" -r -- "${TR_XX}" ||
+					exit "${LINENO}"
+				continue
+
+			elif
+				: '#+ Get a certain substring if it exists.'
+				#! Note, of the shell that invoked \mkdir\.
+				TR_YY=${TR_XX#*_}
+				TR_YY=${TR_YY%.d}
+				TR_YY=${TR_YY#*_pid-}
+
+				: '#+ If the substring TR_YY could be a PID'
+				[[ -n ${TR_YY} ]] &&
+				[[ ${TR_YY} == [0-9]* ]] &&
+				(( TR_YY > 300 )) &&
+				(( TR_YY < 2**22 ))
+			then
+				: '#+ Then delete the directory.'
+				"${script_rm_cmd[@]}" -r -- "${TR_XX}" ||
+					exit "${LINENO}"
+				continue
+
+			else
+				: '#+ Otherwise, ask the user.'
+				printf '\nThis other directory was found:\n'
+				printf '\t%s\n' "${TR_XX}"
+				printf '\nDelete it? (Press a number.)\n'
+				select AA_yn in yes no
+				do
+					if 	[[ -n $AA_yn ]] &&
+						[[ $AA_yn == yes ]]
+					then
+						"${script_rm_cmd[@]}" -r \
+							-- "${TR_XX}" ||
+							exit "${LINENO}"
+					fi
+					break
+				done
+				unset AA_yn
+			fi
 		done
 	fi
 }
 trap 'function_trap; kill -s SIGINT $$' "${script_traps_1[@]}"
-#trap 'function_trap; exit 0' 		"${script_traps_2[@]}"
+trap 'function_trap; exit 0' 		"${script_traps_2[@]}"
+
+	#kill -s sigint "$$" #<>
+	#set -x
 
 : '## Identify / define script input'
 if 	(( $# != 0 ))
@@ -131,7 +246,7 @@ fi
 export script_strings
 
 : '## Get the current list of help topics from bash'
-: '#+ Note, \sort -u\ removes lines from output of \compgen\ in this case'
+#! Note, \sort -u\ removes lines from output of \compgen\ in this case
 mapfile -t script_all_topix < <(
 	compgen -A helptopic |
 		sort -d |
@@ -139,117 +254,127 @@ mapfile -t script_all_topix < <(
 )
 export script_all_topix
 
-: '## Define temporary directory'
-AA_YY=$(
-	date |
-		sum |
-		tr -d ' \t'
-)
-AA_ZZ="${TMPDIR:?}/.temp_${script_name}_${AA_YY}_$$"
-
-: '## Define temporary data file'
-tmpfile="$TMPDIR/.bash_help_topics"
-unset AA_XX AA_YY
-
 	#declare -p script_strings
-	set -x
+	#set -x
 
 
 
-: '## Match for an option flag, \-s\ or \-l*\...'
+: '## Match for an option flag:'
+: '#+   \-s\   			-- Section B'
+: '#+   \-l*\  			-- Section C'
+: '#+   Neither \-s\ nor \-l*\	-- Section D'
+: '#+'
+
 if 	[[ ${script_strings[0]:-""} = "-s" ]]
 then
-	: '#########  Section B  #########'
 
+	: '#########  Section B  #########'
 	: '## List short descriptions of specified builtins'
+
+	: '#+ Remove \-s\ from the array of \script_strings.'
 	unset "script_strings[0]"
 	script_strings=("${script_strings[@]}")
 
 	: '#+ Does a valid help_topics file exist?'
-	mapfile -d "" -t help_topx_files < <(
-		find "${script_poss_temp_dirs[@]}" -maxdepth 1 \
+	mapfile -d "" -t BB_htopx_files < <(
+		find "${script_temp_dirs[@]}" -maxdepth 1 \
 			"${script_find_args[@]}" -type f \
-			-name "*${tmpfile##*/}*" -print0 2>/dev/null
+			-name "*${script_tmpfl##*/}*" -print0 2>/dev/null
 	)
-		#declare -p help_topx_files
+		#declare -p BB_htopx_files
 		#echo "${Halt:?}"
 
-	: '#+ Create the temporary directory (used for timefile)'
-	mkdir "$AA_ZZ" ||
-		exit "$LINENO"
-
 	: '## Are there any help topics files lying about?'
-	if 	(( ${#help_topx_files[@]} > 0 ))
+	if 	(( ${#BB_htopx_files[@]} > 0 ))
 	then
-		: '#+ Any help topics file should be at most one day old.'
-		timefile="$AA_ZZ/.t"
-		touch -mt "$( date -d yesterday +%Y%m%d%H%M.%S )" \
-			"$timefile"
+		: '#+ Any help topics file should be at most \configurable\.'
+		BB_time="yesterday"
+		BB_file="${script_tmpdr}/${BB_time}"
+		touch -mt "$( date -d "${BB_time}" +%Y%m%d%H%M.%S )" \
+			"${BB_file}"
 
-			#stat "$timefile"
+		: '#+ Begin a list of files to be removed.'
+		BB_list=( "$BB_file" )
 
-		for CC_XX in "${help_topx_files[@]}"
+			#stat "$BB_file" #<>
+
+		: '## For each found help topics file'
+		#! Note, unset each deleted file so that \case\ statement
+		#! below is accurate
+		for BB_XX in "${!BB_htopx_files[@]}"
 		do
-			if 	! [[ $CC_XX -nt "$timefile" ]]
+			: '#+ If the file is older than one day'
+			if ! [[ ${BB_htopx_files[BB_XX]} -nt "$BB_file" ]]
 			then
-				: '#+ Remove old help topics file'
-				rm --one-file-system --preserve-root=all \
-					-f -- "$CC_XX"
+					: "older" #<>
+					: #<>
+
+				: '#+ Add it to the removal list'
+				BB_list+=("${BB_htopx_files[BB_XX]}")
+				unset "BB_htopx_files[BB_XX]"
+			else 	: "false" #<>
 			fi
 		done
 
-		: '#+ Remove timefile'
-		rm --one-file-system --preserve-root=all -f -- "$timefile"
-		unset timefile
+		: '#+ Delete each file on the list of files to be removed.'
+		"${script_rm_cmd[@]}" -- "${BB_list[@]}" ||
+			exit "${LINENO}"
+
+		unset BB_time BB_file BB_list
 	fi
 
 	: '#+ How many help topics files are known to exist?'
-		: "number, help_topx_files: ${#help_topx_files[@]}"
 
-	case ${#help_topx_files[@]} in
+		: "number, BB_htopx_files: ${#BB_htopx_files[@]}" #<>
+
+	#! Note, branches are '1', '0' and '*'.
+	case ${#BB_htopx_files[@]} in
 		1)
 			: '#+ One file exists'
-			tmpfile="${help_topx_files[*]}"
-
+			script_tmpfl="${BB_htopx_files[*]}"
 			;;#
 		0)
 			: '#+ No files exist; create one and parse the data'
 		  	COLUMNS=256 builtin help |
-				grep ^" " 		> "$AA_ZZ/o"
-			cut -c -128 "$AA_ZZ/o" 		> "$AA_ZZ/c1"
-			cut -c $((128+1))- "$AA_ZZ/o" 	> "$AA_ZZ/c2"
-			sort -d "$AA_ZZ/c1" "$AA_ZZ/c2" |
-				uniq 			> "$AA_ZZ/c0"
+				grep ^" " > "$script_tmpdr/hlp"
+
+			cut -c -128 "$script_tmpdr/hlp"	> \
+				"$script_tmpdr/col1"
+
+			cut -c $((128+1))- "$script_tmpdr/hlp" > \
+				"$script_tmpdr/col2"
+
+			sort -d "$script_tmpdr/col1" "$script_tmpdr/col2" |
+				uniq > "$script_tmpdr/col0"
 
 			: '#+ Remove leading and trailing spaces'
 			sed -ie 's,^[[:space:]]*,,g; s,[[:space:]]*$,,g' \
-				"$AA_ZZ/c0"
+				"$script_tmpdr/col0"
 
 			: '#+ Write a somewhat durable file.'
-			cp -a "$AA_ZZ/c0" "$tmpfile"
+			cp -a "$script_tmpdr/col0" "$script_tmpfl"
 			;;#
 		*)
 			: '#+ Multiple files exist'
 			echo Removing multiple topics files, and exiting.
-			rm --one-file-system --preserve-root=all -f -- \
-				"${help_topx_files[@]}"
+			"${script_rm_cmd[@]}" -- "${BB_htopx_files[@]}" ||
+				exit "${LINENO}"
 			exit "$LINENO"
 			;;#
 	esac
 
 	: '## Print info from the topics file and exit. '
-	: '#+ Note, using awk regex rather than bash\s pattern matching'
-	: '#+ syntax.'
+	#! Note, using awk regex rather than bash\s pattern matching
+	#! syntax.
 	if 	(( ${#script_strings[@]} == 0 ))
 	then
-		
-			more -e
+		more -e "$script_tmpfl"
 	else
-		: '## Bug, this section had read from tmpfile, in order to'
-		: '#+ show full usage descriptions. '
+		: '## Bug, this section had read from \script_tmpfl, in'
+		: '#+ order to show full usage descriptions. '
 
-		: '## If the string appears in the first column / at the'
-		: '#+ beginning of \tmpfile, then print that line'
+		: '## If the string appears in the first column or at the'
+		: '#+ beginning of \script_tmpfl, then print that line'
 
 			#set -x
 			#declare -p script_strings
@@ -257,44 +382,47 @@ then
 		## Bug, if the search string is NA in the topics file, then
 		#+ there s/b a 'NA' message output from the \help\ builtin
 
-		for CC_YY in "${script_strings[@]}"
+		for BB_YY in "${script_strings[@]}"
 		do
-		      if [[ $CC_YY == @($|%|^|\(|\(\(|.|\[|\[\[|\{|\\|\|) ]]
+		      if [[ $BB_YY == @($|%|^|\(|\(\(|.|\[|\[\[|\{|\\|\|) ]]
 			then
-				: '#+ Note, bash parameter expansions do'
-				: '#+ not support sed\s \&\ back references'
+				#! Note, bash parameter expansions do
+				#! not support sed\s \&\ back references
 				# shellcheck disable=SC2001
-				CC_ZZ=$( sed 's,.,\\\\&,g' <<< "$CC_YY" )
+				BB_ZZ=$( sed 's,.,\\\\&,g' <<< "$BB_YY" )
 			else
-				CC_ZZ="$CC_YY"
+				BB_ZZ="$BB_YY"
 			fi
 
-			if 	[[ $CC_ZZ == \\\\% ]]
+			if 	[[ $BB_ZZ == \\\\% ]]
 			then
-				CC_ZZ='job_spec'
+				BB_ZZ='job_spec'
 			fi
-				#declare -p CC_ZZ script_strings
+				#declare -p BB_ZZ script_strings
 
-			CC_XX=$( 
-			    awk -v yy="$CC_ZZ" '$1 ~ yy { print " " $0 }' \
-					"$tmpfile"
+			BB_XX=$(
+			    awk -v yy="$BB_ZZ" '$1 ~ yy { print " " $0 }' \
+					"$script_tmpfl"
 			)
 
-			if 	[[ -n $CC_XX ]]
+			if 	[[ -n ${BB_XX:0:8} ]]
 			then
-				printf '%s\n' "$CC_XX" |
+				printf '%s\n' "$BB_XX" |
 					cut -c "-$(( COLUMNS - 5 ))"
 
 			else
-				# deleted: case / esac with hex codes of ASCII chars
-				builtin help "$CC_YY"
+				#! Note, deleted: case/esac with hex codes
+				#! of ASCII chars
+				builtin help "$BB_YY" 2>&1 |
+					awk -F 'help:' \
+					    '{ print "  help:" $2 }' ||:
 			fi
 		done |
 			sort -d |
 			uniq |
 			more -e
 	fi
-	unset tmpfile help_topx_files CC_YY CC_ZZ
+	unset BB_XX BB_YY BB_ZZ BB_htopx_files
 
 		#printf '%s\n\n' "${Halt:?}" # <>
 
@@ -320,11 +448,11 @@ then
 	: '#+ Posparm \2 can be a filter. If empty, let it be any char'
 	if 	[[ -z ${script_strings[1]:-} ]]
 	then
-		set -- "${script_strings[0]}" '.*'
+		set -- "${script_strings[0]:=}" '.*'
 	fi
 
 	: '## Bug, reduce the length of the list according to posparms, eg,'
-	: '#+ \ex\ or \sh\...'
+	: '#+ \ex\ or \sh\.'
 
 	: '#+ Get total Number of Help Topics for this run of this script'
 	ht_count=${#script_all_topix[@]}
@@ -447,7 +575,7 @@ else
 	: '#########  Section D  #########'
 
 	: '##   If the script\s first operand is neither a \-s\ nor a'
-	: '#+ \-l*\...'
+	: '#+ \-l*\.'
 		#set -x
 
 	: '## If the number of strings is greater than zero'
@@ -492,3 +620,4 @@ else
 fi
 
 exit 00
+
