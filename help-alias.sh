@@ -286,8 +286,8 @@ then
 	: '## Are there any help topics files lying about?'
 	if 	(( ${#BB_htopx_files[@]} > 0 ))
 	then
-		: '#+ Any help topics file should be at most \configurable\.'
-                : '#+ '
+		: '#+ The validity of any help topics file should be a configurable'
+                : '#+ time period, and should be an operand to \date -d\.'
                 BB_time="yesterday"
 		BB_file="${script_tmpdr}/${BB_time}"
 		touch -mt "$( date -d "${BB_time}" +%Y%m%d%H%M.%S )" \
@@ -303,7 +303,7 @@ then
 		#! below is accurate
 		for BB_XX in "${!BB_htopx_files[@]}"
 		do
-			: '#+ If the file is older than one day'
+			: '#+ If the file is older than configured time frame...'
 			if ! [[ ${BB_htopx_files[BB_XX]} -nt "$BB_file" ]]
 			then
 					: "older" #<>
@@ -341,7 +341,7 @@ then
 			cut -c -128 "$script_tmpdr/hlp"	> \
 				"$script_tmpdr/col1"
 
-			cut -c $((128+1))- "$script_tmpdr/hlp" > \
+			cut -c 129- "$script_tmpdr/hlp" > \
 				"$script_tmpdr/col2"
 
 			sort -d "$script_tmpdr/col1" "$script_tmpdr/col2" |
@@ -351,6 +351,10 @@ then
 			sed -ie 's,^[[:space:]]*,,g; s,[[:space:]]*$,,g' \
 				"$script_tmpdr/col0"
 
+                        : '#+ Alt cmd. ???.'
+			awk '{ $1 = $1 }' < "$script_tmpdr/col0" \
+                                > "$script_tmpdr/fin"
+	
 			: '#+ Write a somewhat durable file.'
 			cp -a "$script_tmpdr/col0" "$script_tmpfl"
 			;;#
