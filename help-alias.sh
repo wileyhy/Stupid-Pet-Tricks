@@ -34,7 +34,7 @@ export COLUMNS
 
 : '#+ Executable \find\ should only return items that \USER can r/w/x.'
 #! Note, make sure these options can only be changed one place.
-script_find_args=( '(' -user "$UID" -a -group "$(id -g)" ')' )
+script_find_args=( '(' -user "$UID" -o -group "$(id -g)" ')' )
 
 #! Note, define this rm command in just one place, to avoid any
 #! inconsistencies
@@ -119,7 +119,7 @@ AA_hash=$(
 		sum |
 		tr -d ' \t'
 )
-script_tmpdr="${TMPDIR:?}/.temp_${script_name}_hash-${AA_hash}_pid-$$.d"
+script_tmpdr="${TMPDIR}/.temp_${script_name}_hash-${AA_hash}_pid-$$.d"
 declare -rx script_tmpdr AA_hash
 
 
@@ -166,7 +166,6 @@ function_trap()
 	then
 		: '#+ For each directory name'
 		local TR_XX TR_YY
-
 
 		for TR_XX in "${TR_list[@]}"
 		do
@@ -237,7 +236,7 @@ trap 'function_trap; exit 0' 		"${script_traps_2[@]}"
 	#set -x
 
 : '## Identify / define script input'
-if 	(( $# != 0 ))
+if 	(( $# > 0 ))
 then
 	script_strings=("$@")
 else
@@ -288,7 +287,8 @@ then
 	if 	(( ${#BB_htopx_files[@]} > 0 ))
 	then
 		: '#+ Any help topics file should be at most \configurable\.'
-		BB_time="yesterday"
+                : '#+ '
+                BB_time="yesterday"
 		BB_file="${script_tmpdr}/${BB_time}"
 		touch -mt "$( date -d "${BB_time}" +%Y%m%d%H%M.%S )" \
 			"${BB_file}"
