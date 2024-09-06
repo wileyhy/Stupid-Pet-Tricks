@@ -1,5 +1,5 @@
 #!/bin/bash
-#! Version 0.6
+#! Version 0.7
 #!   A re-implementation of `help -s`, `apropos` for bash's help builtin,
 #! written in bash 5.2.
 #!   There is an additional option added: '-l', for listing help topics.
@@ -36,8 +36,7 @@ export COLUMNS
 #! Note, make sure these options can only be changed one place.
 script_find_args=( '(' -user "$UID" -o -group "$(id -g)" ')' )
 
-#! Note, define this rm command in just one place, to avoid any
-#! inconsistencies
+: '#+ Define this rm command in just one place, to avoid any inconsistencies.'
 script_rm_cmd=( rm --one-file-system --preserve-root=all -f )
 
 : '## Define TMPDIR.'
@@ -230,7 +229,7 @@ function_trap()
 	fi
 }
 trap 'function_trap; kill -s SIGINT $$' "${script_traps_1[@]}"
-trap 'function_trap; exit 0' 		"${script_traps_2[@]}"
+#trap 'function_trap; exit 0' 		"${script_traps_2[@]}"
 
 	#kill -s sigint "$$" #<>
 	#set -x
@@ -248,13 +247,12 @@ export script_strings
 #! Note, \sort -u\ removes lines from output of \compgen\ in this case
 mapfile -t script_all_topix < <(
 	compgen -A helptopic |
-		sort -d |
-		uniq
+		sort -d
 )
 export script_all_topix
 
-	#declare -p script_strings
-	#set -x
+	#declare -p script_strings #<>
+	set -x #<>
 
 
 
@@ -270,11 +268,11 @@ then
 	: '#########  Section B  #########'
 	: '## List short descriptions of specified builtins'
 
-	: '#+ Remove \-s\ from the array of \script_strings.'
+	: '## Remove \-s\ from the array of \script_strings.'
 	unset "script_strings[0]"
 	script_strings=("${script_strings[@]}")
 
-	: '#+ Does a valid help_topics file exist?'
+	: '## Search for help_topics files.'
 	mapfile -d "" -t BB_htopx_files < <(
 		find "${script_temp_dirs[@]}" -maxdepth 1 \
 			"${script_find_args[@]}" -type f \
@@ -283,12 +281,21 @@ then
 		#declare -p BB_htopx_files
 		#echo "${Halt:?}"
 
-	: '## Are there any help topics files lying about?'
+	: '## Remove any out of date help topics files.'
 	if 	(( ${#BB_htopx_files[@]} > 0 ))
 	then
-		: '#+ The validity of any help topics file should be a configurable'
-                : '#+ time period, and should be an operand to \date -d\.'
+		: '#+ Configurable validity time frame'
+		#! Note, validity of any help topics file should be a
+                #! configurable time period, and should be an operand to
+		#! \date -d\.
                 BB_time="yesterday"
+
+			#BB_time="last year" #<>
+                	#BB_time="2 fortnights ago" #<>
+                	#BB_time="1 month ago" #<>
+                	#BB_time="@1721718000" #<>
+                	#BB_time="-2 fortnights ago" #<>
+
 		BB_file="${script_tmpdr}/${BB_time}"
 		touch -mt "$( date -d "${BB_time}" +%Y%m%d%H%M.%S )" \
 			"${BB_file}"
@@ -296,18 +303,19 @@ then
 		: '#+ Begin a list of files to be removed.'
 		BB_list=( "$BB_file" )
 
+			#:;: #<>
 			#stat "$BB_file" #<>
+			#echo "${Halt:?}" #<>
 
 		: '## For each found help topics file'
 		#! Note, unset each deleted file so that \case\ statement
 		#! below is accurate
 		for BB_XX in "${!BB_htopx_files[@]}"
 		do
-			: '#+ If the file is older than configured time frame...'
+			: '#+ If the file is older than the time frame...'
 			if ! [[ ${BB_htopx_files[BB_XX]} -nt "$BB_file" ]]
 			then
-					: "older" #<>
-					: #<>
+					: "older";: #<>
 
 				: '#+ Add it to the removal list'
 				BB_list+=("${BB_htopx_files[BB_XX]}")
@@ -334,29 +342,28 @@ then
 			script_tmpfl="${BB_htopx_files[*]}"
 			;;#
 		0)
+			#! Bug, some descriptions are cut off in file col1;
+			#! using 512 columns has no effect.
+
 			: '#+ No files exist; create one and parse the data'
 		  	COLUMNS=256 builtin help |
 				grep ^" " > "$script_tmpdr/hlp"
 
+			#! Note, integers 128 and 129 are indeed correct.
 			cut -c -128 "$script_tmpdr/hlp"	> \
 				"$script_tmpdr/col1"
-
 			cut -c 129- "$script_tmpdr/hlp" > \
 				"$script_tmpdr/col2"
 
-			sort -d "$script_tmpdr/col1" "$script_tmpdr/col2" |
-				uniq > "$script_tmpdr/col0"
+			sort -d "$script_tmpdr/col1" "$script_tmpdr/col2" \
+				> "$script_tmpdr/col0"
 
 			: '#+ Remove leading and trailing spaces'
-			sed -ie 's,^[[:space:]]*,,g; s,[[:space:]]*$,,g' \
-				"$script_tmpdr/col0"
+			awk '{ $1 = $1; print }' < "$script_tmpdr/col0" \
+				> "$script_tmpdr/fin"
 
-                        : '#+ Alt cmd. ???.'
-			awk '{ $1 = $1 }' < "$script_tmpdr/col0" \
-                                > "$script_tmpdr/fin"
-	
 			: '#+ Write a somewhat durable file.'
-			cp -a "$script_tmpdr/col0" "$script_tmpfl"
+			cp -a "$script_tmpdr/fin" "$script_tmpfl"
 			;;#
 		*)
 			: '#+ Multiple files exist'
@@ -366,6 +373,8 @@ then
 			exit "$LINENO"
 			;;#
 	esac
+
+		echo "${Halt:?}" #<>
 
 	: '## Print info from the topics file and exit. '
 	#! Note, using awk regex rather than bash\s pattern matching
@@ -624,4 +633,3 @@ else
 fi
 
 exit 00
-
