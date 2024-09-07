@@ -1,5 +1,5 @@
 #!/bin/bash
-#! Version 0.7
+#! Version 0.8
 #!   A re-implementation of `help -s`, `apropos` for bash's help builtin,
 #! written in bash 5.2.
 #!   There is an additional option added: '-l', for listing help topics.
@@ -330,51 +330,142 @@ then
 
 		unset BB_time BB_file BB_list
 	fi
-
-	: '#+ How many help topics files are known to exist?'
-
 		: "number, BB_htopx_files: ${#BB_htopx_files[@]}" #<>
 
-	#! Note, branches are '1', '0' and '*'.
-	case ${#BB_htopx_files[@]} in
-		1)
-			: '#+ One file exists'
-			script_tmpfl="${BB_htopx_files[*]}"
-			;;#
-		0)
-			#! Bug, some descriptions are cut off in file col1;
-			#! using 512 columns has no effect.
 
-			: '#+ No files exist; create one and parse the data'
-		  	COLUMNS=256 builtin help |
-				grep ^" " > "$script_tmpdr/hlp"
+	: '#+ How many help topics files remain?'
+	if 	(( ${#BB_htopx_files[@]} == 1 ))
+	then
+		: '#+ One file exists'
+		script_tmpfl="${BB_htopx_files[*]}"
+		
+	else
 
-			#! Note, integers 128 and 129 are indeed correct.
-			cut -c -128 "$script_tmpdr/hlp"	> \
-				"$script_tmpdr/col1"
-			cut -c 129- "$script_tmpdr/hlp" > \
-				"$script_tmpdr/col2"
-
-			sort -d "$script_tmpdr/col1" "$script_tmpdr/col2" \
-				> "$script_tmpdr/col0"
-
-			: '#+ Remove leading and trailing spaces'
-			awk '{ $1 = $1; print }' < "$script_tmpdr/col0" \
-				> "$script_tmpdr/fin"
-
-			: '#+ Write a somewhat durable file.'
-			cp -a "$script_tmpdr/fin" "$script_tmpfl"
-			;;#
-		*)
+		if 	(( ${#BB_htopx_files[@]} > 0 ))
+		then
 			: '#+ Multiple files exist'
-			echo Removing multiple topics files, and exiting.
+			: "Removing multiple topics files."
 			"${script_rm_cmd[@]}" -- "${BB_htopx_files[@]}" ||
 				exit "${LINENO}"
-			exit "$LINENO"
-			;;#
-	esac
+		fi
 
-		echo "${Halt:?}" #<>
+		: '## Create a new data file.'
+		COLUMNS=256 builtin help |
+			grep ^" " > "$script_tmpdr/10"
+
+		## Bug, some of the help strings are longer than 128c.
+		#! It would be necc to loop over \builtin help STRING\
+		#! and append to an output file in order to gather all
+		#! of the available information.
+
+		#! Note, integers 128 and 129 are indeed correct. Setting
+		#! \COLUMNS to 512 doesn\t help.
+		cut -c -128 "$script_tmpdr/10"	> "$script_tmpdr/20"
+		cut -c 129- "$script_tmpdr/10" > "$script_tmpdr/30"
+
+		#+ sort into dictionary order
+		sort -d "$script_tmpdr/20" "$script_tmpdr/30" \
+			> "$script_tmpdr/40"
+	
+		: '#+ Remove leading and trailing spaces'
+		awk '{ $1 = $1; print }' < "$script_tmpdr/40" \
+			> "$script_tmpdr/50"
+
+		## Bash
+		#+ get the total number of records
+		BB_line_count_all=$( wc -l < "$script_tmpdr/50" )
+			#awk 'END { print NR }' # Alt cmd
+
+		#! Note, in some future version of this script, there may
+		#! be a loop that measures the number of duplicate leading 
+		#! substrings in the output of \builtin help\ by counting 
+		#! the number unique lines that print when a reducing number 
+		#! of record fields are printed. 
+		
+		#! in future, poss three fields reqd to id all dup substrings.
+		#! topics could change so that first 2 fields of 2 records 
+		#! are the same
+		BB_line_count_3=$( awk '{ print $1, $2, $3 }' 50 | 
+			uniq -c | 
+			wc -l
+		)
+
+		#! condition passes, of theoretical future loop
+		(( BB_line_count_3 != BB_line_count_all ))
+
+		#+ get number of unique records when 1st 2 fields are printed
+		BB_line_count_2=$( awk '{ print $1, $2 }' 50 | 
+			uniq -c | 
+			wc -l
+		)
+
+		#+ condition passes
+		(( BB_line_count_2 != BB_line_count_all ))
+
+		#+ get number of unique records when only 1st field is printed
+		BB_line_count_1=$( awk '{ print $1 }' "$script_tmpdr/50" | 
+			uniq -c | 
+			wc -l
+		)
+
+		#+ condition fails
+		(( BB_line_count_1 != BB_line_count_all ))
+
+		#! Note, the '== "2"' awk string constant below is dependent
+		#! upon the number of records that were printing at the most
+		#! recent iteration where BB_line_count_?? waas equivalent
+		#! to BB_line_count_all. Similarly with the '== "1"' awk
+		#! string constant farther below, since each iteration of the
+		#! (pending future) loop decrements the field count by 
+		#! just 1.
+
+		#+ there could be multiple records where the 1st field has 
+		#+ some duplicates, so use an array
+		mapfile -t dup_str_two < <(
+			awk '{ print $1 }' "$script_tmpdr/50" | 
+				uniq -c | 
+				awk '$1 == "2" { print $2 }' 
+		)
+		#! Note, this \awk | uniq -c\ sub-pipeline above is the same 
+		#! compound (sub-)command as at BB_line_count_1 above, as well
+		#! as at the "print records of 1 fields\ length" commment
+		#! below. Possibly the data should be stored in a separate 
+		#! array (in bash), which is as yet unwritten.
+
+		#+ iterate through array
+		for XX in "${dup_str_two[@]}"
+		do
+			#+ print records of 2 fields\ length into new file
+			awk -v xx="@/^${XX}$/" '$1 ~ xx { print $1, $2 }' \
+				"$script_tmpdr/50" > "$script_tmpdr/90"
+		done
+
+		#+ print records of 1 fields\ length and append to new file
+		awk '{ print $1 }' "$script_tmpdr/50" | 
+			uniq -c | 
+			awk '$1 != "1" { print $2 }' >> "$script_tmpdr/90"
+		
+		#+ sort new file
+		sort "$script_tmpdr/90" > "$script_tmpdr/100"
+		
+		#+ remove all capitalized words
+		sed 's,\<[[:upper:]]*\>,,g' "$script_tmpdr/100" \
+			> "$script_tmpdr/110"
+			#! Note, the asterisk in this sed regexp above 
+			#! includes strings of 1 or 2 characters. sb a min
+			#! of 2 or 3.
+
+		#+ remove leading and trailing whitespace
+		awk '{ $1 = $1; print }' "$script_tmpdr/110" \
+			> "$script_tmpdr/120"
+			#! Note, this cmd can also be done in sed
+
+
+		: '#+ Write a somewhat durable file.'
+		cp -a "$script_tmpdr/60" "$script_tmpfl"
+	fi
+		declare -p BB_htopx_files #<>
+		echo "${Halt:?}" #<> Stops script if EXIT is not trapped.
 
 	: '## Print info from the topics file and exit. '
 	#! Note, using awk regex rather than bash\s pattern matching
