@@ -1,5 +1,5 @@
 #!/bin/bash
-#! Version 0.8
+#! Version 0.9
 #!   A re-implementation of `help -s`, `apropos` for bash's help builtin,
 #! written in bash 5.2.
 #!   There is an additional option added: '-l', for listing help topics.
@@ -243,6 +243,9 @@ else
 fi
 export script_strings
 
+#! Bug, \compgen\ can be compiled out of bash, so you cannot depend on its
+#! availability.
+
 : '## Get the current list of help topics from bash'
 #! Note, \sort -u\ removes lines from output of \compgen\ in this case
 mapfile -t script_all_topix < <(
@@ -284,6 +287,7 @@ then
 	: '## Remove any out of date help topics files.'
 	if 	(( ${#BB_htopx_files[@]} > 0 ))
 	then
+		: 'true' #<>
 		: '#+ Configurable validity time frame'
 		#! Note, validity of any help topics file should be a
                 #! configurable time period, and should be an operand to
@@ -329,6 +333,7 @@ then
 			exit "${LINENO}"
 
 		unset BB_time BB_file BB_list
+	else 	: 'false' #<>
 	fi
 		: "number, BB_htopx_files: ${#BB_htopx_files[@]}" #<>
 
@@ -336,136 +341,222 @@ then
 	: '#+ How many help topics files remain?'
 	if 	(( ${#BB_htopx_files[@]} == 1 ))
 	then
+		: 'true' #<>
 		: '#+ One file exists'
 		script_tmpfl="${BB_htopx_files[*]}"
 		
 	else
-
-		if 	(( ${#BB_htopx_files[@]} > 0 ))
+		: 'false' #<>
+		: '## If multiple files exist, delete them.'
+		
+		: '#+ Test number of existing files.'
+		if 	(( ${#BB_htopx_files[@]} > 1 ))
 		then
-			: '#+ Multiple files exist'
-			: "Removing multiple topics files."
+			: 'true' #<>
 			"${script_rm_cmd[@]}" -- "${BB_htopx_files[@]}" ||
 				exit "${LINENO}"
+		else	: 'false' #<>
 		fi
 
 		: '## Create a new data file.'
 		COLUMNS=256 builtin help |
-			grep ^" " > "$script_tmpdr/10"
+			grep ^" " > "$script_tmpdr/10_help-out"
 
-		## Bug, some of the help strings are longer than 128c.
+		#! Bug, some of the help strings are longer than 128c.
 		#! It would be necc to loop over \builtin help STRING\
 		#! and append to an output file in order to gather all
 		#! of the available information.
 
 		#! Note, integers 128 and 129 are indeed correct. Setting
 		#! \COLUMNS to 512 doesn\t help.
-		cut -c -128 "$script_tmpdr/10"	> "$script_tmpdr/20"
-		cut -c 129- "$script_tmpdr/10" > "$script_tmpdr/30"
+		cut -c -128 "$script_tmpdr/10_help-out"	\
+			> "$script_tmpdr/20_col-1"
+		cut -c 129- "$script_tmpdr/10_help-out" \
+			> "$script_tmpdr/30_col-2"
 
 		#+ sort into dictionary order
-		sort -d "$script_tmpdr/20" "$script_tmpdr/30" \
-			> "$script_tmpdr/40"
+		sort -d "$script_tmpdr/20_col-1" "$script_tmpdr/30_col-2" \
+			> "$script_tmpdr/40_col-all"
 	
 		: '#+ Remove leading and trailing spaces'
-		awk '{ $1 = $1; print }' < "$script_tmpdr/40" \
-			> "$script_tmpdr/50"
+		awk '{ $1 = $1; print }' < "$script_tmpdr/40_col-all" \
+			> "$script_tmpdr/50_trimmed"
 
 		## Bash
 		#+ get the total number of records
-		BB_line_count_all=$( wc -l < "$script_tmpdr/50" )
+		BB_line_count_all=$( wc -l < "$script_tmpdr/50_trimmed" )
 			#awk 'END { print NR }' # Alt cmd
 
 		#! Note, in some future version of this script, there may
 		#! be a loop that measures the number of duplicate leading 
 		#! substrings in the output of \builtin help\ by counting 
-		#! the number unique lines that print when a reducing number 
+		#! the number unique lines that print when a reducing number
 		#! of record fields are printed. 
-		
-		#! in future, poss three fields reqd to id all dup substrings.
-		#! topics could change so that first 2 fields of 2 records 
-		#! are the same
-		BB_line_count_3=$( awk '{ print $1, $2, $3 }' 50 | 
-			uniq -c | 
-			wc -l
+
+		BB_field_count_all=$( 
+			awk '{ if (NF > max) max = NF } END { print max }' \
+				"$script_tmpdr/50_trimmed" 
 		)
+			unset BB_line_count_{0..150} #<>
+			set -x # <>
 
-		#! condition passes, of theoretical future loop
-		(( BB_line_count_3 != BB_line_count_all ))
+		unset -f _get_uniq_c
+		_get_uniq_c(){
+			awk "$*" "$script_tmpdr/50_trimmed" | 
+				uniq -c
+		}
+			#declare -F _get_uniq_c #<>
 
-		#+ get number of unique records when 1st 2 fields are printed
-		BB_line_count_2=$( awk '{ print $1, $2 }' 50 | 
-			uniq -c | 
-			wc -l
-		)
+		for (( BB_MW=BB_field_count_all; BB_MW >=0 ; BB_MW-- ));
+		do
+				: "BB_MW: $BB_MW" #<>
 
-		#+ condition passes
-		(( BB_line_count_2 != BB_line_count_all ))
+			#! Note, I prefer to avoid using bash\s Word 
+			#! Expansion facilities whenever possible: hence 
+			#! the array \numbs.
+			numbs=()
+			mapfile -O 1 -t numbs < <( 
+				seq 1 "$BB_MW" 
+			);
+				: "count, numbs: ${#numbs[@]}" #<>
 
-		#+ get number of unique records when only 1st field is printed
-		BB_line_count_1=$( awk '{ print $1 }' "$script_tmpdr/50" | 
-			uniq -c | 
-			wc -l
-		)
+			[[ -n ${awk_prog_str[*]:0:8} ]] &&
+				prev_awk_prg_str=( "${awk_prog_str[@]}" )
 
-		#+ condition fails
-		(( BB_line_count_1 != BB_line_count_all ))
+			unset awk_prog_str
+			mapfile -d ' ' -t awk_prog_str < <( 
+				printf '{ print' ; 
+				printf ' $%d ' "${numbs[@]}" | 
+					sed 's/  /, /g'; 
+				printf '}' 
+			)
+
+			#<>
+			: "begin, awk_prog_str:   <${awk_prog_str[0]}" \
+			  "${awk_prog_str[1]} ${awk_prog_str[2]}>" #<>
+			: "end, awk_prog_str:   <${awk_prog_str[-3]}" \
+			  "${awk_prog_str[-2]} ${awk_prog_str[-1]}>" #<>
+
+			: '#+ Get the number of records that print when the'
+			: '#+ current number \BB_MW of fields is printed.'
+			unset lines
+			declare -n lines="BB_line_count_${BB_MW}"
+			printf -v "lines" '%d' "$( 
+				_get_uniq_c "${awk_prog_str[*]}" |
+					wc -l 
+			)"
+				: "lines: $lines" #<>
+
+			#+ condition passes
+			if 	(( lines != BB_line_count_all ))
+			then
+				: 'true' #<>
+				break
+			else	: 'false' #<>
+			fi
+
+		done
+			#:;:;:
+			#declare -p BB_line_count_all BB_MW numbs
+			#declare -p awk_prog_str prev_awk_prg_str
+			#declare -f _get_uniq_c
+			#declare -p lines	
+			#echo "lines: $lines"
+			#echo "${Halt:?}" #<>
 
 		#! Note, the '== "2"' awk string constant below is dependent
 		#! upon the number of records that were printing at the most
 		#! recent iteration where BB_line_count_?? waas equivalent
 		#! to BB_line_count_all. Similarly with the '== "1"' awk
-		#! string constant farther below, since each iteration of the
-		#! (pending future) loop decrements the field count by 
+		#! string constant farther below, since each iteration of
+		#! the (pending future) loop decrements the field count by 
 		#! just 1.
 
 		#+ there could be multiple records where the 1st field has 
-		#+ some duplicates, so use an array
-		mapfile -t dup_str_two < <(
-			awk '{ print $1 }' "$script_tmpdr/50" | 
-				uniq -c | 
-				awk '$1 == "2" { print $2 }' 
+		#+ some duplicates, so use an array. Also, remove any 
+		#+ leading or trailing whitespace.
+		_get_uniq_c "${awk_prog_str[*]}" |
+			awk '{ $1 = $1; print }' > "$script_tmpdr/60_uniq-c"
+		
+			#less "$script_tmpdr/60_uniq-c" #<>
+			#echo "${Halt:?}" #<>
+		
+		unset dup_strs #<>
+		mapfile -t dup_strs < <(
+			awk -v bb_wm=$((BB_MW + 1)) \
+				'$1 == bb_wm { print $2 }' \
+				"$script_tmpdr/60_uniq-c"
 		)
-		#! Note, this \awk | uniq -c\ sub-pipeline above is the same 
-		#! compound (sub-)command as at BB_line_count_1 above, as well
-		#! as at the "print records of 1 fields\ length" commment
-		#! below. Possibly the data should be stored in a separate 
-		#! array (in bash), which is as yet unwritten.
+			declare -p dup_strs
+			#echo "${Halt:?}" #<>
 
-		#+ iterate through array
-		for XX in "${dup_str_two[@]}"
+		#! Note, this \awk | uniq -c\ sub-pipeline above is the same
+		#! compound (sub-)command as at BB_line_count_1 above, as
+		#! well as at the "print records of 1 fields\ length"
+		#! comment below. Possibly the data should be stored in a
+		#! separate array (in bash), which is as yet unwritten.
+
+		#+ Iterate through array of strings which have duplicates
+		#+ at field depth \BB_MW
+		for XX in "${dup_strs[@]}"
 		do
-			#+ print records of 2 fields\ length into new file
-			awk -v xx="@/^${XX}$/" '$1 ~ xx { print $1, $2 }' \
-				"$script_tmpdr/50" > "$script_tmpdr/90"
+			#! Note, The input file for this awk command should
+			#! be "50_trimmed" - confirmed.
+
+			#+ Print records of $((BB_MW + 1)) fields\ record
+			#+ length into new file
+			awk -v xx="@/^${XX}$/" \
+				"\$1 ~ xx ${prev_awk_prg_str[*]}" \
+				"$script_tmpdr/50_trimmed" \
+				> "$script_tmpdr/70_unique-strings"
 		done
 
-		#+ print records of 1 fields\ length and append to new file
-		awk '{ print $1 }' "$script_tmpdr/50" | 
-			uniq -c | 
-			awk '$1 != "1" { print $2 }' >> "$script_tmpdr/90"
-		
-		#+ sort new file
-		sort "$script_tmpdr/90" > "$script_tmpdr/100"
-		
-		#+ remove all capitalized words
-		sed 's,\<[[:upper:]]*\>,,g' "$script_tmpdr/100" \
-			> "$script_tmpdr/110"
-			#! Note, the asterisk in this sed regexp above 
-			#! includes strings of 1 or 2 characters. sb a min
-			#! of 2 or 3.
+			head "$script_tmpdr/70_unique-strings" #<>
+			#echo "${Halt:?}" #<>
+			#declare -p prev_awk_prg_str script_tmpdr BB_MW #<>
 
-		#+ remove leading and trailing whitespace
-		awk '{ $1 = $1; print }' "$script_tmpdr/110" \
-			> "$script_tmpdr/120"
-			#! Note, this cmd can also be done in sed
+		#! Note, still use the \prev_awk_prg_str array. Even though
+		#! the information sought is from one less field level,
+		#! \uniq -c\ prepends a field to each record.
 
+		#+ Print records of \BB_MW fields\ length and append to file
+		awk -v bb_wx="@/^${BB_MW}$/" '$1 ~ bb_wx {print $2}' \
+			"$script_tmpdr/60_uniq-c" \
+			>> "$script_tmpdr/70_unique-strings"
+		
+			#head "$script_tmpdr/70_unique-strings" #<>
+			#echo "${Halt:?}" #<>
+
+		#! Note, in theory, the current field depth could be 3 or 4, 
+		#! and there could be lower levels of dups which this script, 
+		#! in its current state, would fail to process correctly. 
+
+		#+ Massage some problematic data.
+		sed 's,job_spec,%,' "$script_tmpdr/70_unique-strings" \
+			> "$script_tmpdr/80_massaged"
+		
+		#+ Sort new file.
+		sort "$script_tmpdr/80_massaged" \
+			> "$script_tmpdr/90_sort"
+		
+		#+ Remove all capitalized words.
+		sed 's/\<[[:upper:]]\{2,\}\>//g' "$script_tmpdr/90_sort" \
+			> "$script_tmpdr/100_no-cap-words"
+
+		#+ Remove leading and trailing whitespace.
+		awk '{ $1 = $1; print }' "$script_tmpdr/100_no-cap-words" \
+			> "$script_tmpdr/110_no-spaces"
+
+			#echo "${Halt:?}" #<>
 
 		: '#+ Write a somewhat durable file.'
-		cp -a "$script_tmpdr/60" "$script_tmpfl"
+		cp -a "$script_tmpdr/110_no-spaces" "$script_tmpfl"
+
+		#+ Add to listing array
+		BB_htopx_files+=( "$script_tmpfl" )
 	fi
 		declare -p BB_htopx_files #<>
-		echo "${Halt:?}" #<> Stops script if EXIT is not trapped.
+		echo "${Halt:?}" #<>
 
 	: '## Print info from the topics file and exit. '
 	#! Note, using awk regex rather than bash\s pattern matching
