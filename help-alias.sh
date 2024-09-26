@@ -1,6 +1,6 @@
 #!/bin/bash
 #!
-#! Version 1.0
+#! Version 1.1
 #!
 #!   A re-implementation of `help -s`, `apropos` for bash's help builtin,
 #! written in bash 5.2.
@@ -17,23 +17,34 @@
 #!
 #    shellcheck disable=SC2059,SC2317
 
-	#set -x #<>
+	#set -x # <>
 
 
 
 :;: '#########  Section A  ######### '
 
 :;: '## Variables, etc.'
-#! Note, \:\ (colon) commands are Thompson-style comments.
+#! Note, \:\ (colon) commands are Thompson-style comments; they\re
+#!   readable in xtrace output.
+#! Note, whitespace is removed from the variable \script_name
+#! Note, \set -e\, a.k.a. errexit, is _In_-_Sane_! To wit:
+#!     https://mywiki.wooledge.org/BashFAQ/105
+#!   But, people use it, and some unfortunate souls could even require
+#!   its use, sadly enough.
 
 script_name="help-alias.sh"
-set -euo pipefail
+script_name=${script_name//[$'\t\n ']/}
+set -e # BAD
+set -u
+set -o pipefail
 shopt -s checkwinsize
 
 
 :;: '## \COLUMNS has been inconsistently inherited from parent processes.'
 
 LC_ALL=C
+export LC_ALL
+
 if 	[[ -z ${COLUMNS:=} ]]
 then
 	:;: "true" #<>
@@ -47,16 +58,33 @@ fi
 export COLUMNS
 
 
+:;: '## Identify / define script input.'
+#! Note, for debugging, if there aren\t any positional parameters,
+#!   then create some.
+
+if 	(( $# > 0 ))
+then
+	:;: "true" #<>
+
+	script_strings=("$@")
+
+else	:;: "false" #<>
+
+	script_strings=(echo builtin type info ls man which) #<>
+fi
+export script_strings
+
+
 :;: '## Executable \find\ should only return items that \USER can r/w/x.'
 #! Note, make sure these options can only be changed one place.
 
 script_find_args=( '(' -user "$UID" -o -group "$(id -g)" ')' )
 
 
-:;: '## Define this rm command in just one place, to avoid any '
-: '#+   inconsistencies.'
+:;: '## Define one consistent \rm\ command.'
 
-script_rm_cmd=( rm --one-file-system --preserve-root=all -f )
+script_rm_cmd=( rm --one-file-system --preserve-root=all --force
+	--verbose )
 
 
 :;: '## Define TMPDIR.'
@@ -68,37 +96,52 @@ script_rm_cmd=( rm --one-file-system --preserve-root=all -f )
 :;: '## From a list of possible values of TMPDIR, ordered by preference...'
 #! Note, this list will be used later as search paths for \find\
 
-AA_UU=(/tmp /var/tmp /usr/tmp /usr/local/tmp "$HOME/tmp" /dev/shm "$HOME")
+AA_UU=( "${TMPDIR:=""}"
+	"${TEMP:=""}"
+	"${TMP:=""}"
+	/tmp
+	/var/tmp
+	/dev/shm
+	/usr/tmp
+	"${XDG_RUNTIME_DIR:=""}/tmp"
+	/usr/local/tmp
+	"${HOME}/tmp"
+	"${HOME}"
+)
 
 
 :;: '## From this list, above, generate a list of known temporary '
 : '#+   directories.'
-#! Note, Using the ':?' parameter expansion on an undefined variable 
+#! Note, Using the ':?' parameter expansion on an undefined variable
 #!   triggers the EXIT trap. If the EXIT trap isn't caught and handled,
 #!   ie, with `trap`, then using ':?' will halt the script.  Hence
 #!   the use of `: "${Halt:?}" throughout the script.
-#! Note, the syntax, '<>', is a local convention which indicates that 
-#!   commands on that line are for debugging. This practice makes it 
-#!   easier to remove all of the debugging commands at once with a 
-#!   simple grep. The symbols appear in comments sometimes or usually 
+#! Note, the syntax, '<>', is a local convention which indicates that
+#!   commands on that line are for debugging. This practice makes it
+#!   easier to remove all of the debugging commands at once with a
+#!   simple grep. The symbols appear in comments sometimes or usually
 #!   at the ends of lines.
 
-	#<>
 	#declare -p AA_UU #<>
+	#set -x # <>
 
-for 	AA_WW in "${AA_UU[@]}"
+for 	AA_WW in "${!AA_UU[@]}"
 do
+	:;: '## Begin major loop: Get a reliable absolute path.'
+	#! Note, if \realpath\ returns with an output of zero length,
+	#!   then the assignment to \AA_VV will fail and, since this
+	#!   if-fi structure spans the entire for loop, the loop's
+	#!   next iteration will begin.
 
-	:;: '## Get a reliable absolute path.'
-
-	if 	AA_VV=$( realpath -e "${AA_WW}" 2>/dev/null )
+	if 	AA_VV=$( realpath -e "${AA_UU[AA_WW]}" 2> /dev/null )
 	then
+		: "true" #<>
 
 		:;: '## If the output of \realpath\ is a writeable '
 		: '#+   directory and not a symlink.'
-		#! Note, for a Thompson comment within an if-fi 
-		#!   structure to print correctly when xtrace is 
-		#!   enabled, the comment must be included within 
+		#! Note, for a Thompson comment within an if-fi
+		#!   structure to print correctly when xtrace is
+		#!   enabled, the comment must be included within
 		#!   the \then\, \else\, etc. blocks, ie., after
 		#!   the keywords and not before them as with regular
 		#!   hashtag-style Bourne comments.
@@ -114,6 +157,12 @@ do
 
 			AA_ZZ=yes
 
+
+			:;: '## Begin minor loop, over the new list'
+			#! Note, if an element from the prior list is
+			#!   absent from the new list, then add that
+			#!   element to the new list.
+
 			for 	AA_TT in "${script_temp_dirs[@]}"
 			do
 
@@ -124,16 +173,22 @@ do
 				then
 
 					:;: '## If yes, do not add that '
-					: '#+   value.'
+					: '#+   value, and end the minor '
+					: '#+   loop.'
 
 					AA_ZZ=no
+					break
 				else
 
-					:;: '## If no, keep iterating.'
+					:;: '## If no, begin the next '
+					: '#+   iteration of the minor '
+					: '#+   loop.'
 
 					continue
 				fi
 			done
+
+			:;: '## End minor loop.'
 
 
 			:;: '## If the entire list has iterated without '
@@ -144,13 +199,25 @@ do
 				script_temp_dirs+=( "${AA_VV}" )
 			fi
 		fi
+
+	else
+		: "false" #<>
+
+		:;: '## If \realpath\ returns a zero length string, '
+		: '#+   then unset the current index \AA_WW.'
+
+		unset 'AA_UU[AA_WW]'
+		continue
 	fi
 done
+
+:;: '## End major loop.'
 unset AA_TT AA_UU AA_VV AA_WW AA_ZZ
 
 	#<> Debugging commands
 	#declare -p script_temp_dirs #<>
 	#: "${Halt:?}" #<>
+	#set -x # <>
 
 
 :;: '## Finally define TMPDIR.'
@@ -158,6 +225,7 @@ unset AA_TT AA_UU AA_VV AA_WW AA_ZZ
 if	[[ ${#script_temp_dirs[@]} -ne 0 ]]
 then
 	TMPDIR="${TMPDIR:="${script_temp_dirs[0]}"}"
+	declare -rx TMPDIR
 else
 	echo Error
 	exit "$LINENO"
@@ -169,29 +237,33 @@ fi
 
 
 :;: '## Define temporary directory.'
-#! Note, format serves as a positive lock mechanism
+#! Note, format of name of temporary directory serves as a
+#!   probable per-execution identifier.
+#! Note, using a `foo=$( ... )` syntax for assigning \AA_rand was
+#!   causing errexit to halt the script with an exit code of
+#!   141 because "subshells from a command substitution unset
+#!   set -e." Hence the use of \read\.
 
-#! Bug? this lock string is too complicated. Re-write it
-#!   based on /dev/urandom?
-
-AA_hash=$(
-	date |
-		sum |
-		tr -d ' \t'
+read -rN8 -t1 AA_rand < <(
+	strings -n1 /dev/urandom |
+		grep -vE '[[:punct:]]' |
+		grep -oE '[[:alnum:]]' |
+		tr -d '\n\t ' |
+		head -c 8
 )
-script_tmpdr="${TMPDIR}/.temp_${script_name}_hash-${AA_hash}_pid-$$.d"
-declare -rx script_tmpdr AA_hash
 
-
-:;: '## Create the temporary directory (used for "time file," etc.).'
-
-mkdir "$script_tmpdr" ||
-	exit "$LINENO"
+script_tmpdr="${TMPDIR}/.temp_${script_name}_rand-${AA_rand}_pid-$$.d"
+declare -rx script_tmpdr AA_rand
 
 
 :;: '## Define temporary data file.'
 
 script_tmpfl="$TMPDIR/.bash_help_topics"
+declare -rx script_tmpfl
+
+	#declare -p AA_rand script_tmpdr script_tmpfl #<>
+	#: "${Halt:?}" #<>
+	#set -x # <>
 
 
 :;: '## Define groups of traps to be caught and handled.'
@@ -205,457 +277,677 @@ script_traps_2=( EXIT )
 
 function_trap()
 {
-	#local -; set -x #<>
+	#local - #<>
+	#set -x # <>
 
 
 	:;: '## Reset traps.'
 
 	trap - "${script_traps_1[@]}" "${script_traps_2[@]}"
 
-
-	:;: '## Remove any & all leftover temporary directories.'
-
-	local -a TR_list
-
-		#declare -p AA_UU script_find_args #<>
+		#declare -p script_find_args #<>
+		#declare -p script_temp_dirs #<>
 		#declare -p script_name #<>
 
 
 	:;: '## Get a list of directories.'
 
+	local -a TR_list
 	mapfile -d "" -t TR_list < <(
-		find "${script_temp_dirs[@]}" "${script_find_args[@]}" \
-			-type d -name '*temp_'"${script_name}"'_*.d' \
-			-print0 2>/dev/null
+		find "${script_temp_dirs[@]}" \
+			-type d "${script_find_args[@]}" \
+			-name "*${script_name}*" \
+			-print0 2> /dev/null
 	)
 
-		#: "${Halt:?}" #<>
 		#declare -p TR_list #<>
+		#: "${Halt:?}" #<>
+		#set -x # <>
 
 
-	:;: '## If any are found...'
+	:;: '## Begin loop: Delete any existing temporary directories.'
 
 	if 	(( "${#TR_list[@]}" > 0 ))
 	then
 
-		:;: '## For each directory name.'
+		:;: '## If any are found, then for each directory name.'
+		#! Note, Array indices are used in this for loop in
+		#!   order to create like indices in the new deletion
+		#!   list
 
-		local TR_XX TR_YY
+		local TR_XX TR_YY TR_dir TR_rm
 
-		for TR_XX in "${TR_list[@]}"
+		for TR_XX in "${!TR_list[@]}"
 		do
+			:;: '## Define a usable variable name.'
 
-			:;: '## If the directory is clearly from this '
-			: '#+   run of this script, then delete the '
-			: '#+   directory.'
+			TR_dir="${TR_list[TR_XX]}"
 
-			if 	grep -qe "${script_tmpdr}" \
-					-e "hash-${AA_hash}" \
-					<<< "${TR_XX}"
+				#: 'TR_dir:' "$TR_dir" #<>
+
+			:;: '## If the directory is clearly from some '
+			: '#+   run of this script, then add it to '
+			: '#+   the deletion list \TR_rm.'
+
+			if	[[ $TR_dir =~ _pid-[0-9]{3,9}.d$    ]] ||
+				[[ $TR_dir =~ _rand-[a-zA-Z0-9]{8}_ ]] ||
+				[[ $TR_dir =~ _hash-[0-9]{5,7}_     ]]
+
 			then
-				"${script_rm_cmd[@]}" -r -- "${TR_XX}" ||
-					exit "${LINENO}"
+				: "true" #<>
+
+				:;: '## Add the dir to the list.';:
+
+				mapfile -O "$TR_XX" -t TR_rm \
+					<<< "${TR_dir}"
+
+					#:; declare -p TR_rm #<>
+
+
+				:;: '## Restart loop.';:
+
 				continue
 
-			elif
-
-				:;: '## If the directory is clearly a '
-				: '#+   previous run of this script, then '
-				: '#+   delete the directory.'
-
-				grep -qE 'hash-[0-9]{5,7}_pid-[0-9]{3,9}' \
-					<<< "${TR_XX}"
-			then
-				"${script_rm_cmd[@]}" -r -- "${TR_XX}" ||
-					exit "${LINENO}"
-				continue
-
-			elif
-
-				:;: '## Get a certain substring if it '
-				: '#+   exists.'
-				#! Note, of the shell that invoked \mkdir\.
-
-				TR_YY=${TR_XX#*_}
-				TR_YY=${TR_YY%.d}
-				TR_YY=${TR_YY#*_pid-}
-
-
-				:;: '## If the substring TR_YY could '
-				: '#+   be a PID.'
-
-				[[ -n ${TR_YY} ]] &&
-				[[ ${TR_YY} == [0-9]* ]] &&
-				(( TR_YY > 300 )) &&
-				(( TR_YY < 2**22 ))
-			then
-
-				:;: '## Then delete the directory.'
-
-				"${script_rm_cmd[@]}" -r -- "${TR_XX}" ||
-					exit "${LINENO}"
-				continue
-
-			else
-
-				:;: '## Otherwise, ask the user.'
-
-				printf '\nThis other directory was found:'
-				printf '\n\t%s\n' "${TR_XX}"
-				printf '\nDelete it? (Press a number.)\n'
-
-				select AA_yn in yes no
-				do
-
-					if 	[[ -n $AA_yn ]] &&
-						[[ $AA_yn == yes ]]
-					then
-						"${script_rm_cmd[@]}" -r \
-							-- "${TR_XX}" ||
-							exit "${LINENO}"
-					fi
-
-					break
-				done
-				unset AA_yn
+			else	: "false" #<>
 			fi
+
+			:;: '## Otherwise, get a PID substring if one '
+			: '#+   exists.'
+			#! Note, of the shell that invoked \mkdir\.
+
+			TR_YY=${TR_dir##*_pid-}
+			TR_YY=${TR_YY%.d}
+
+			:;: '## Is there a PID substring in \{TR_dir} ?'
+
+			if 	[[ -n ${TR_YY}        ]] &&
+				[[ ${TR_YY} == [0-9]* ]] &&
+				(( TR_YY > 300        )) &&
+				(( TR_YY < 2**22      ))
+			then
+				: "true" #<>
+
+				:;: '## Then add the directory to the '
+				: '#+   deletion list.'
+
+				mapfile -O "$TR_XX" -t TR_rm \
+					<<< "${TR_dir}"
+
+			else 	: "false" #<>
+			fi
+
+				#declare -p TR_rm #<>
+
+			:;: '## Restart loop.';:
 		done
+
+		:;: '## End loop.';:
+
+			#declare -p TR_rm #<>
+
+
+		:;: '## If any found directories passed the filters, then '
+		: '#+   remove them.'
+
+		if 	(( ${#TR_rm[@]} > 0 ))
+		then
+			command -p "${script_rm_cmd[@]}" --recursive \
+					-- "${TR_rm[@]}" ||
+				exit "${LINENO}"
+		fi
 	fi
+
+
+	:;: '## Kill the parent process with signal \interrupt\.'
+
+	kill -s sigint "$$"
 }
 
 
 :;: '## Define traps.'
+#! Note, The trap on EXIT is disabled during debugging in order to
+#!   allow \Halt:?\ to stop execution.
 
-trap 'function_trap; kill -s SIGINT $$' "${script_traps_1[@]}"
-#trap 'function_trap; exit 0' 		"${script_traps_2[@]}"
+trap 'function_trap; kill -s SIGINT "$$"' "${script_traps_1[@]}"
+#trap 'function_trap; exit 0'              "${script_traps_2[@]}"
 
-	#kill -s sigint "$$" #<>
-	set -x # <>
-
-
-:;: '## Identify / define script input.'
-
-if 	(( $# > 0 ))
-then
-	:;: "true" #<>
-
-	script_strings=("$@")
-
-else	:;: "false" #<>
-
-	script_strings=(echo builtin type info ls man which) #<>
-fi
-export script_strings
+	#: "${Halt:?}" #<>
+	#set -x # <>
 
 
-	#! Bug, \compgen\ can be compiled out of bash, so you cannot
-	#!   depend on its availability.
+:;: '## Create the temporary directory (used for "time file," etc.).'
+
+mkdir "$script_tmpdr" ||
+	exit "$LINENO"
+
+
 
 
 :;: '## Get the current list of help topics from bash.'
 
-	##! Note, \sort -u\ removes lines from output of \compgen\ in
-	##!   this case.
-	#mapfile -t script_all_topix < <(
-		#compgen -A helptopic |
-			#sort -d
-	#)
-	#export script_all_topix
-
-
-:;: '## Create a new data file.'
-#! Note, integers 128 and 129 are indeed correct. Setting
-#!   \COLUMNS to 512 doesn\t help.
-
-COLUMNS=256 builtin help |
-	grep '^ ' > "$script_tmpdr/10_help-out"
+#! Bug, \compgen\ can be compiled out of bash, so you cannot
+#!   depend on its availability.
+#! Note, \sort -u\ removes lines from output of \compgen\ in this case.
 
 #! Bug, some of the help strings are longer than 128c.
 #!   It would be necc to loop over \builtin help STRING\
 #!   and append to an output file in order to gather all
 #!   of the available information.
 
-cut -c -128 "$script_tmpdr/10_help-out"	> "$script_tmpdr/20_col-1"
-cut -c 129- "$script_tmpdr/10_help-out" > "$script_tmpdr/30_col-2"
+:;: '## Create a new data file.'
+#! Note, integers 128 and 129 are indeed correct. Setting
+#!   \COLUMNS to 512 doesn\t help.
+#! Note, I\m using disk files in order to be abel to more clearly
+#!   track down any problems during debugging.
+
+COLUMNS=256 \
+	builtin help \
+		> "$script_tmpdr/00_help-as-is"
+
+grep '^ ' 2>&1 \
+	< "$script_tmpdr/00_help-as-is" \
+	> "$script_tmpdr/10_help-out"
+
+cut -c -128 \
+	< "$script_tmpdr/10_help-out" \
+	> "$script_tmpdr/20_col-1"
+
+cut -c 129- \
+	< "$script_tmpdr/10_help-out" \
+	> "$script_tmpdr/30_col-2"
 
 
-:;: '## Sort into dictionary order.'
+:;: '## Remove spaces, fix problematic data and sort.'
 
-sort -d "$script_tmpdr/20_col-1" "$script_tmpdr/30_col-2" \
-	> "$script_tmpdr/40_col-all"
+awk '{ $1 = $1; print }' \
+	  "$script_tmpdr/20_col-1" \
+	  "$script_tmpdr/30_col-2" \
+	> "$script_tmpdr/40_col-all-trimmed"
 
+sed 's,job_spec,%,' \
+	< "$script_tmpdr/40_col-all-trimmed" \
+	> "$script_tmpdr/50_massaged"
 
-:;: '## Remove leading and trailing spaces.'
+sort -d \
+	< "$script_tmpdr/50_massaged" \
+	> "$script_tmpdr/60_sorted"
 
-awk '{ $1 = $1; print }' < "$script_tmpdr/40_col-all" \
-	> "$script_tmpdr/50_trimmed"
-
-	ls -alhFi "$script_tmpdr/50_trimmed" #<>
-
-
-
-:;: '## Get the full list of help topics. ...somehow....'
-#! Note, in a loop, measure the number of duplicate leading
-#!   substrings in the output of \builtin help\ by counting
-#!   the number unique lines that print when a reducing number
-#!   of record fields are printed.
-
-
-:;: '## Get the total number of records.'
-
-BB_line_count_all=$( wc -l < "$script_tmpdr/50_trimmed" )
-
-	#<> Alternate cmd
-	#awk 'END { print NR }' #<>
-
-
-:;: '## Get the total number of horizontal (awk) fields from '
-: '#+   among all records.'
-
-BB_field_count_all=$(
-	awk '{ if (NF > max) max = NF } END { print max }' \
-		"$script_tmpdr/50_trimmed"
-)
-
+	#ls -alhFi "$script_tmpdr/60_sorted" #<>
+	#: "${Halt:?}" #<>
 	set -x # <>
+
+
+	#<> Debugging code
+	#ln -sT /tmp/bash-65_sorted "$script_tmpdr/60_sorted"
 
 
 :;: '## Define a function for a frequently used set of commands.'
 
-unset -f _get_uniq_c
-_get_uniq_c(){
-	awk "$*" "$script_tmpdr/50_trimmed" |
+_awk_uniq_c(){
+	awk "$*" "$script_tmpdr/60_sorted" |
 		uniq -c
 }
 
-	#declare -F _get_uniq_c #<>
+: "$( declare -F _awk_uniq_c )" #<>
 
 
-:;: '## Loop: find any duplicated leading substrings from output of '
-: '#+   \help\. Beginning with the maximum number of (awk) fields from '
-: '#+   among all records...'
 
-for 	(( BB_MW=BB_field_count_all; BB_MW >= 0 ; BB_MW-- ))
+
+
+
+
+
+
+
+## Get the list of \uniq -c\ counted unique fields at a depth of
+#+   x1 awk field.
+#! Note, this subsection was written as a separate script and implanted in.
+
+awk '{ print $1 }' "$script_tmpdr/60_sorted" |
+	uniq -c |
+	sort -rn > "$script_tmpdr/70_f1-uniq-sort"
+
+	#head -v "$script_tmpdr/70_f1-uniq-sort" | cat -Aen #<>
+	#exit "$LINENO" #<>
+	#set -x # <>
+
+
+## Get the list of counted multiple occurrances, ie, x3
+#+   occurrances of "foo",
+#+   x2 occurrances of "bar", etc.
+
+mapfile -d "" -t counts_of_occurrances < <(
+	awk '{ printf "%d\0", $1 }' "$script_tmpdr/70_f1-uniq-sort" |
+		sort -uz
+)
+
+	#declare -p counts_of_occurrances #<>
+	#exit "$LINENO" #<>
+	set -x # <>
+
+
+## For loop
+#! Note, process from low to high values, ie, 1 then 2 then 3, etc.
+
+unset AA
+for	AA in "${counts_of_occurrances[@]}"
 do
-	#! Note, I prefer to avoid using bash\s Field
-	#!   Splitting facilities whenever possible: hence
-	#!   the array \numbs.
-
-		:;: "BB_MW: $BB_MW" #<>
+		#declare -p AA #<>
 
 
-	:;: '## Get an index number for each field to be referenced in '
-	: '#+   this iteration of this for loop.'
+	## Get the list of unique initial substrings, left to right.
 
-	numbs=()
-	mapfile -O 1 -t numbs < <(
-		seq 1 "$BB_MW"
-	)
-
-		:;: "count, numbs: ${#numbs[@]}" #<>
-
-
-	:;: '## Does variable \awk_prog_str must have a non-zero length?'
-
-	if	[[ -n ${awk_prog_str[*]:0:8} ]]
+	if 	(( AA == 1 ))
 	then
-		:;: "true" #<>
+		: "true";:; #<>
 
-		:;: '## If so, then define variable \prev_awk_prg_str.'
 
-		prev_awk_prg_str=( "${awk_prog_str[@]}" )
+		## For field depth one, the command is trivial.
 
-	else 	:;: "false" #<>
+		awk '{ print $1 }' "$script_tmpdr/60_sorted" |
+			uniq -c |
+			sort -n |
+			awk '$1 == "1" { print $2 }' \
+				> "$script_tmpdr/80_level-1-substrings"
+
+			#head -v "$script_tmpdr/80_level-1-substrings" #<>
+			#cat -Aen "$script_tmpdr/80_level-1-substrings" #<>
+			#wc -l "$script_tmpdr/80_level-1-substrings" #<>
+			#exit "$LINENO" #<>
+
+		continue
+
+	else	: "false";: #<>
 	fi
 
 
-	:;: '## (Re-)define variable \awk_prog_str.'
-	#! Note, In this block, an awk program is built character
-	#!   by character and saved as an (bash) indexed array, using
-	#!   the array of indices, \numbs, as it is defined in this
-	#!   iteration of thios for loop, above. The purpose is to print
-	#!   a diminishing number of (awk) record fields per each
-	#!   iteration of the (bash) loop.
+	## For field depths greater than one.
 
-	unset awk_prog_str
-	mapfile -d ' ' -t awk_prog_str < <(
-		printf '{ print'
-		printf ' $%d ' "${numbs[@]}" |
+	mapfile -d "" -t "level_${AA}" < <(
+		awk -v aa="${AA}" '$1 == aa { printf "%s\0", $2 }' \
+			"$script_tmpdr/70_f1-uniq-sort"
+	)
+
+		#declare -p "level_${AA}" #<>
+		#exit "$LINENO" #<>
+		#set -x # <>
+
+
+	## Nameref for array
+
+	unset -n array_nameref
+	declare -n array_nameref
+	array_nameref="level_${AA}"
+
+		#declare -p array_nameref #<>
+		#exit "$LINENO" #<>
+		#set -x # <>
+
+
+	## Build awk program
+	# shellcheck disable=SC2016
+
+	mapfile -d " " -t awk_prg < <(
+		printf '$1 == xx { print'
+		printf ' $%s ' $( seq 1 "${AA}" ) |
 			sed 's/  /, /g'
 		printf '}'
 	)
 
-		#<>
-		:;: "begin, awk_prog_str:   <${awk_prog_str[0]}" \
-			"${awk_prog_str[1]} ${awk_prog_str[2]}>" #<>
-		:;: "end, awk_prog_str:   <${awk_prog_str[-3]}" \
-			"${awk_prog_str[-2]} ${awk_prog_str[-1]}>" #<>
+		#declare -p awk_prg #<>
+		: 'awk_prg:' "${awk_prg[*]}" #<>
+		#: ${Halt:?} #<>
+		#exit "$LINENO" #<>
+		#set -x # <>
 
 
-	:;: '## Get the number of records that print when the '
-	: '#+   current number \BB_MW of fields is printed.'
-	#! Note, do this by creating an indirect scalar parameter,
-	#!   \BB_line_count_[0-9]{1,2}. Reference that parameter
-	#!   using a nameref variable, \lines. Define \lines by using
-	#!   the combination of two tools constructed above, namely,
-	#!   the function \_get_uniq_c()\ and the indexed array
-	#!   \awk_prog_str, which is input for said function. The
-	#!   function will execute the (awk) program from the function\s
-	#!   STDIN, ie, the function\s positional parameters, and awk
-	#!   will process a hard-coded file, named above. The function
-	#!   produces output from `uniq -c`. This means that, for any
-	#!   number of fields printed, 20, 19, 18, etc., that, if
-	#!   `uniq -c` finds any duplicate truncated lines, then
-	#!   the line count of output from `uniq -c` will decrease,
-	#!   which would indicate the presence of fully or partially
-	#!   duplicated (awk) records, which are actually lines of
-	#!   output from `builtin help`.
+	## COMMENT.
 
-	unset lines
-	declare -n lines="BB_line_count_${BB_MW}"
-	printf -v "lines" '%d' "$(
-		_get_uniq_c "${awk_prog_str[*]}" |
-			wc -l
-	)"
+	unset XX
+	for 	XX in "${array_nameref[@]}"
+	do
+			#declare -p XX #<>
+			#: ${Halt:?} #<>
+			#exit "$LINENO" #<>
 
-		:;: "lines: $lines" #<>
+		## Execute awk program
 
+		awk -v xx="$XX" "${awk_prg[*]}" "$script_tmpdr/60_sorted" |
+			sed -E 's/([A-Z]{3,}|[A-Za-z]{3,}$).*//g' |
+			awk '{ $1 = $1 ; print }' \
+			    >> "$script_tmpdr/80_level-${AA}-substrings"
 
-	:;: '## Is the number of lines not equal to the full file\s '
-	: '#+   total line count?'
+			#head -v "$script_tmpdr/80_level-${AA}-substrings" #<>
+			#cat -Aen "$script_tmpdr/80_level-${AA}-substrings" #<>
+			#: ${Halt:?} #<>
+			#exit "$LINENO" #<>
+			#set -x # <>
+	done
+		#head -v "$script_tmpdr/80_level-${AA}-substrings"|cat -Aen #<>
+		#exit "$LINENO" #<>
+		#set -x # <>
 
-	if 	(( lines != BB_line_count_all ))
-	then
-		:;: 'True.' #<>
-
-		:;: '## If so, then break out of this loop.'
-
-		break
-
-	else	:;: 'False.' #<>
-		:;: '## Otherwise, go to the next iteration.' #<>
-	fi
-
+## End for loop
 done
-
-	:;:;: #<>
-	#declare -p BB_line_count_all BB_MW numbs #<>
-	#declare -p awk_prog_str prev_awk_prg_str #<>
-	#declare -f _get_uniq_c #<>
-	#declare -p lines #<>
-	#echo "lines: $lines" #<>
-	#: "${Halt:?}" #<>
-
-#! Note, the '== "2"' awk string constant below is dependent
-#!   upon the number of records that were printing at the most
-#!   recent iteration where BB_line_count_?? waas equivalent
-#!   to BB_line_count_all. Similarly with the '== "1"' awk
-#!   string constant farther below, since each iteration of
-#!   the (pending future) loop decrements the field count by
-#!   just 1.
+unset AA XX
 
 
-:;: '## There could be multiple records where the 1st field has '
-: '#+   some duplicates, so use an array. Also, remove any '
-: '#+   leading or trailing whitespace.'
+sort -d \
+	"$script_tmpdr"/80_level-*-substrings \
+	> "$script_tmpdr/90_all-substrings"
 
-_get_uniq_c "${awk_prog_str[*]}" |
-	awk '{ $1 = $1; print }' > "$script_tmpdr/60_uniq-c"
+	#cat -Aen "$script_tmpdr/90_all-substrings" | head #<>
 
-	#less "$script_tmpdr/60_uniq-c" #<>
-	#: "${Halt:?}" #<>
 
-unset dup_strs #<>
-mapfile -t dup_strs < <(
-	awk -v bb_wm=$((BB_MW + 1)) \
-		'$1 == bb_wm { print $2 }' \
-		"$script_tmpdr/60_uniq-c"
+mapfile -O 1 -t script_all_topix < "$script_tmpdr/90_all-substrings"
+
+	declare -p script_all_topix #<>
+
+
+mapfile -O 1 -t outputs < <(
+	for XX in "${script_all_topix[@]}"
+	do
+		builtin help -s "$XX"
+	done
 )
 
-	declare -p dup_strs
-	#: "${Halt:?}" #<>
-
-#! Note, this \awk | uniq -c\ sub-pipeline above is the same
-#!   compound (sub-)command as at BB_line_count_1 above, as
-#!   well as at the "print records of 1 fields\ length"
-#!   comment below. Possibly the data should be stored in a
-#!   separate array (in bash), which is as yet unwritten.
+	declare -p outputs #<>
 
 
-:;: '## Iterate through array of strings which have duplicates '
-: '#+   at field depth \BB_MW.'
+printf '%s\n' "${outputs[@]}" > "$script_tmpdr/100_help-s-correct"
 
-for XX in "${dup_strs[@]}"
-do
-	#! Note, The input file for this awk command should
-	#!   be "50_trimmed" - confirmed.
+	ls "$script_tmpdr/100_help-s-correct" #<>
+	: "${Halt:?}" #<>
+	set -x # <>
 
 
-	:;: '## Print records of \BB_MW + 1\ fields\ record '
-	: '#+   length into new file.'
-
-	awk -v xx="@/^${XX}$/" \
-		"\$1 ~ xx ${prev_awk_prg_str[*]}" \
-		"$script_tmpdr/50_trimmed" \
-		> "$script_tmpdr/70_unique-strings"
-done
-
-	head "$script_tmpdr/70_unique-strings" #<>
-	#: "${Halt:?}" #<>
-	#declare -p prev_awk_prg_str script_tmpdr BB_MW #<>
-
-#! Note, still use the \prev_awk_prg_str array. Even though
-#!   the information sought is from one less field level,
-#!   \uniq -c\ prepends a field to each record.
 
 
-:;: '## Print records of \BB_MW fields\ length and append to file.'
-
-awk -v bb_wx="@/^${BB_MW}$/" '$1 ~ bb_wx {print $2}' \
-	"$script_tmpdr/60_uniq-c" \
-	>> "$script_tmpdr/70_unique-strings"
-
-	#head "$script_tmpdr/70_unique-strings" #<>
-	#: "${Halt:?}" #<>
-
-#! Note, in theory, the current field depth could be 3 or 4,
-#!   and there could be lower levels o dups which this script,
-#!   in its current state, would fail to process correctly.
 
 
-:;: '## Massage some problematic data.'
-
-sed 's,job_spec,%,' "$script_tmpdr/70_unique-strings" \
-	> "$script_tmpdr/80_massaged"
 
 
-:;: '## Sort new file.'
 
-sort "$script_tmpdr/80_massaged" \
-	> "$script_tmpdr/90_sort"
+	#:;: '## Get the full list of help topics. ...somehow....'
+	##! Note, in a loop, measure the number of duplicate leading
+	##!   substrings in the output of \builtin help\ by counting
+	##!   the number unique lines that print when a reducing number
+	##!   of record fields are printed.
+	#:;: '## Get the total number of records and the total number of '
+	#: '#+   horizontal (awk) fields from among all records.'
+	#BB_line_count_all=$( wc -l < "$script_tmpdr/60_sorted" )
+	##BB_field_count_all=$(
+	##awk '{ if (NF > max) max = NF } END { print max }' \
+		##"$script_tmpdr/60_sorted"
+	##)
+		##declare -p BB_line_count_all BB_field_count_all
+		##: "${Halt:?}" #<>
+		##set -x # <>
+	#:;: '## Loop: get information from help output data on how many '
+	#: '#+   unique awk records print depending on how many awk fields '
+	#: '#+   are printed.'
+	#BB_MW=0
+	#function _set_lin_ct_vars(){
+		#unset "BB_line_count_${BB_MW}"
+		#local -g "BB_line_count_${BB_MW}"
+		#printf -v "BB_line_count_${BB_MW}" '%s' 0
+		#
+		#unset -n line_ct
+		#local -gn line_ct
+		#line_ct="BB_line_count_${BB_MW}"
+		#
+		#:;: "End of function, _set_lin_ct_vars()";:
+	#}
+	#declare -F  _set_lin_ct_vars
+	#_set_lin_ct_vars
+		##declare -p BB_MW "${!BB_line_count_@}" line_ct #<>
+		##: "${Halt:?}" #<>
+	#:;: '## Get a list of field numbers from 1 to the field number where '
+	#: '#+   the number of records is equal to the total number of records.'
+	#for 	(( BB_MW=1; line_ct < BB_line_count_all; BB_MW++ ))
+	#do
+		##! Note, I prefer to avoid using bash\s Field Splitting
+		##!   facilities whenever possible: hence the array \numbs
+		##!   for keeping track of (awk) fields.
+			#:;: "BB_MW: $BB_MW" #<>
+		#:;: '## Get an index number for each (awk) field to be '
+		#: '#+   referenced in the current iteration.'
+		##numbs=() #<>
+		#mapfile -O 1 -t numbs < <(
+			#seq 1 "$BB_MW"
+		#)
+			##:;: "count, numbs: ${#numbs[@]}" #<>
+			#declare -p numbs #<>
+		#:;: '## If possible, create array \prev_awk_prg_str.'
+		#if	:;: '## Does \awk_prog_str have a non-zero length?'
+			#[[ -n ${awk_prog_str[*]:0:1} ]]
+		#then
+			#: "true" #<>
+			#:;: '## If so, then define variable \prev_awk_prg_str.'
+			#prev_awk_prg_str=( "${awk_prog_str[@]}" )
+		#else 	: "false" #<>
+		#fi
+		#:;: '## (Re-)Define variable \awk_prog_str.'
+		##! Note, In this block, an awk program is built character
+		##!   by character and saved as an (bash) indexed array, using
+		##!   the array of indices, \numbs, as it is defined in this
+		##!   iteration of this for loop, above. The purpose is to print
+		##!   a diminishing number of (awk) record fields per each
+		##!   iteration of the (bash) loop.
+		#unset awk_prog_str
+		#mapfile -d ' ' -t awk_prog_str < <(
+			#printf '{ print'
+			#printf ' $%d ' "${numbs[@]}" |
+				#sed 's/  /, /g'
+			#printf '}'
+		#)
+			##<> Debugging
+			##:;: $'begin, awk_prog_str:\t'   "${awk_prog_str[0]}"  "${awk_prog_str[1]}"   "${awk_prog_str[2]}" #<>
+			##:;: $'end,   awk_prog_str:\t'   "${awk_prog_str[-3]}" "${awk_prog_str[-2]}" "${awk_prog_str[-1]}" #<>
+		#:;: '## Get the number of records that print when the '
+		#: '#+   current number, \BB_MW, of fields is printed.';:
+		##! Note, do this by creating an indirect scalar parameter,
+		##!   \BB_line_count_[0-9]{1,2}. Reference that parameter
+		##!   using a nameref variable, \line_ct. Define \line_ct by using
+		##!   the combination of two tools constructed above, namely,
+		##!   the function \_awk_uniq_c()\ and the indexed array
+		##!   \awk_prog_str, which is input for said function. The
+		##!   function will execute the (awk) program from the function\s
+		##!   STDIN, ie, the function\s positional parameters, and awk
+		##!   will process a hard-coded file, named above. The function
+		##!   produces output from `uniq -c`. This means that, for any
+		##!   number of fields printed, 20, 19, 18, etc., if
+		##!   `uniq -c` finds any duplicate truncated lines, then
+		##!   the line count of output from `uniq -c` will decrease,
+		##!   which would indicate the presence of fully or partially
+		##!   duplicated (awk) records, which are actually lines of
+		##!   output from `builtin help`.
+		#_set_lin_ct_vars
+		#printf -v "line_ct" '%d' "$(
+			#_awk_uniq_c "${awk_prog_str[*]}" |
+				#wc -l
+		#)"
+			##:;: "line_ct: $line_ct" #<>
+		#:;: '## Construct array.'
+		#array_line_by_field+=( ["${BB_MW}"]="$line_ct" )
+			##declare -p "BB_line_count_${BB_MW}" #<>
+			#declare -p array_line_by_field #<>
+			##exit 101 #<>
+		#:;: 'Begin next iteration';:
+	#done
+	#:;: 'End loop'
+	##unset -n line_ct
+	##unset "${!BB_line_count_@}"
+	##unset BB_line_count_all BB_MW numbs
+		##:;:;: #<>
+		##declare -p BB_line_count_all BB_MW numbs #<>
+		##declare -p awk_prog_str prev_awk_prg_str #<>
+		##declare -p line_ct #<>
+		##echo "line_ct: $line_ct" #<>
+		##declare -p array_line_by_field #<>
+		##declare -p "${!BB_line_count_@}" #<>
+	#:;: '## Get a reversed list of indices for \array_line_by_field.'
+		#echo indices: "${!array_line_by_field[@]}" #<>
+		#declare -p array_line_by_field #<>
+		##: "${Halt:?}" #<>
+	#mapfile -d "" -t rvs_indics < <(
+		#printf '%d\0' "${!array_line_by_field[@]}" |
+			#sort -rz
+	#)
+		#declare -p rvs_indics
+	##! Bug / Question, due to how the above loop is constructed,
+	##!   will the break point always be at "${array_line_by_field[-2]}" ?
+	##!   ...seems to be.
+	##! Bug / Question, alternately, what about grepping the output of
+	##!   \uniq -c\ and printing all strings that occur just once into
+	##!   a 'unique strings' file, in one loop. And removing those
+	##!   unique strings from the source file during that loop. then
+	##!   incrementing for the next loop?
+	##!
+	##! At field level 1:
+	##$ awk '{ print $1 }' /tmp/bash-65_sorted |
+	##	uniq -c |
+	##	wc -l
+	## 76
+	##$ awk '{ print $1 }' /tmp/bash-65_sorted |
+	##	uniq -c |
+	##	sort -nr |
+	##	head -n5
+	##      3 quux
+	##      2 for
+	##      1 while
+	##      1 wait
+	##      1 variables
+	##! grep out all unique strings.
+	##$ awk '{ print $1 }' /tmp/bash-65_sorted | uniq -c | sort -nr | awk '$1 == 1 { print $2 }' | head -n5
+	## while
+	## wait
+	## variables
+	## until
+	## unset
+	##! remove the unique strings from the source data pool ??
+	##$ awk '{ print $1 }' /tmp/bash-65_sorted |
+	##	uniq -c |
+	##	sort -nr |
+	##	grep -v '^\s*1 '
+	##      3 quux
+	##      2 for
+	##! ...or just increment the field number, which is acting as a filter
+	##$ awk '{ print $1 }' /tmp/bash-65_sorted |
+	##	uniq -c |
+	##	sort -nr |
+	##	awk '$1 == 2 { print $2 }' |
+	##	head -n5
+	## for
+	#:;: '## Find where in \array_line_by_field the line count begins '
+	#: '#+   to decrease.'
+	#for BB_JJ in "${rvs_indics[@]}"
+	#do
+		#if 	(( array_line_by_field[BB_JJ] < BB_line_count_all ))
+		#then
+			#break_point="$BB_JJ"
+			#break
+		#fi
+	#done
+	#unset BB_JJ
+		#declare -p break_point #<>
+		#: "${Halt:?}" #<>
+		##set -x # <>
+	##!   Super Old Note.
+	##! Note, the '== "2"' awk string constant below is dependent
+	##!   upon the number of records that were printing at the most
+	##!   recent iteration where BB_line_count_?? was equivalent
+	##!   to BB_line_count_all. Similarly with the '== "1"' awk
+	##!   string constant farther below, since each iteration of
+	##!   the (pending future) loop decrements the field count by
+	##!   just 1.
+	#:;: '## There could be multiple records where the 1st field has '
+	#: '#+   some duplicates, so use an array. Also, remove any '
+	#: '#+   leading or trailing whitespace using awk.'
+	#_awk_uniq_c "${prev_awk_prg_str[*]}" |
+		#awk '{ $1 = $1; print }' > "$script_tmpdr/70_uniq-c"
+		##less "$script_tmpdr/70_uniq-c" #<>
+		##: "${Halt:?}" #<>
+	#:;: '## COMMENT.'
+	#mapfile -t dup_strs < <(
+		#awk -v bb_wm=$((break_point + 1)) \
+			#'$1 == bb_wm { print $2 }' \
+			#"$script_tmpdr/70_uniq-c"
+	#)
+		##declare -p dup_strs
+		##: "${Halt:?}" #<>
+		##set -x # <>
+	##! Note, this \awk | uniq -c\ sub-pipeline above is the same
+	##!   compound (sub-)command as at BB_line_count_1 above, as
+	##!   well as at the "print records of 1 fields\ length"
+	##!   comment below. Possibly the data should be stored in a
+	##!   separate array (in bash), which is as yet unwritten.
+	#:;: '## Iterate through array of strings which have duplicates '
+	#: '#+   at field depth \break_point.'
+	#for XX in "${dup_strs[@]}"
+	#do
+			##declare -p XX dup_strs prev_awk_prg_str awk_prog_str #<>
+		#:;: '## Print records of \break_point + 1\ fields\ record '
+		#: '#+   length into new file.'
+		##! Note, The input file for this awk command should
+		##!   be "60_sorted" - confirmed.
+		#awk -v xx="@/^${XX}$/" "\$1 ~ xx ${awk_prog_str[*]}" \
+			#"$script_tmpdr/60_sorted" \
+			#> "$script_tmpdr/80_unique-strings"
+	#done
+		##cat -Aen "$script_tmpdr/80_unique-strings" #<>
+		##declare -p break_point #<>
+		##: "${Halt:?}" #<>
+		#set -x # <>
+	##! Note, still use the \prev_awk_prg_str array. Even though
+	##!   the information sought is from one less field level,
+	##!   \uniq -c\ prepends a field to each record.
+	#:;: '## Remove all capitalized words.'
+	#sed 's/\<[[:upper:]]\{2,\}\>//g' "$script_tmpdr/80_unique-strings" \
+		#> "$script_tmpdr/90_no-cap-words"
+		##cat -Aen "$script_tmpdr"/90_* #<>
+		##: "${Halt:?}" #<>
+	#cat 	< "$script_tmpdr/90_no-cap-words" \
+		#> "$script_tmpdr/100_unique-help-topics"
+		##cat -Aen "$script_tmpdr"/100_* #<>
+		##: "${Halt:?}" #<>
+	#:;: '## Print records of \break_point+1\ fields\ length; append to file.'
+	#awk -v bb_wx="@/^$(( break_point + 1 ))$/" '$1 !~ bb_wx {print $2}' \
+		#"$script_tmpdr/70_uniq-c" \
+		#> "$script_tmpdr/90_non-dup-topics"
+	#cat 	< "$script_tmpdr/90_non-dup-topics" \
+		#>> "$script_tmpdr/100_unique-help-topics"
+		#cat -Aen "$script_tmpdr"/100_* #<>
+		#: "${Halt:?}" #<>
+	##! Note, in theory, the current field depth could be 3 or 4,
+	##!   and there could be lower levels o dups which this script,
+	##!   in its current state, would fail to process correctly.
+	#:;: '## Sort new file.'
+	#sort "$script_tmpdr/100_unique-help-topics" \
+		#> "$script_tmpdr/110_sort"
+		##head -n100 "$script_tmpdr"/{6,7,8,9,10}0_*| cat -Aen| more -e #<>
+		#head -n100 "$script_tmpdr"/1{0,1}0_* | cat -Aen | more -e #<>
+		#: "${Halt:?}" #<>
+		#### AJAX ###
+	#:;: '## Write a somewhat durable file.'
+	#cp -a "$script_tmpdr/110_no-spaces" "$script_tmpfl"
+		#declare -p script_strings #<>
+		#set -x # <>
+		#: "${Halt:?}"
 
 
-:;: '## Remove all capitalized words.'
-
-sed 's/\<[[:upper:]]\{2,\}\>//g' "$script_tmpdr/90_sort" \
-	> "$script_tmpdr/100_no-cap-words"
 
 
-:;: '## Remove leading and trailing whitespace.'
-
-awk '{ $1 = $1; print }' "$script_tmpdr/100_no-cap-words" \
-	> "$script_tmpdr/110_no-spaces"
-
-	#: "${Halt:?}" #<>
 
 
-:;: '## Write a somewhat durable file.'
 
-cp -a "$script_tmpdr/110_no-spaces" "$script_tmpfl"
 
-	#declare -p script_strings #<>
-	set -x #<>
-	: "${Halt:?}"
+
+
+
+
+
+
 
 
 
@@ -682,11 +974,11 @@ then
 	mapfile -d "" -t BB_htopx_files < <(
 		find "${script_temp_dirs[@]}" -maxdepth 1 \
 			"${script_find_args[@]}" -type f \
-			-name "*${script_tmpfl##*/}*" -print0 2>/dev/null
+			-name "*${script_tmpfl##*/}*" -print0 2> /dev/null
 	)
 
-		#declare -p BB_htopx_files
-		#: "${Halt:?}"
+		declare -p BB_htopx_files #<>
+		: "${Halt:?}" #<>
 
 
 	:;: '## Remove any out of date help topics files.'
@@ -702,11 +994,11 @@ then
 
 		BB_time="yesterday"
 
-			#BB_time="last year" #<>
-                	#BB_time="2 fortnights ago" #<>
-                	#BB_time="1 month ago" #<>
-                	#BB_time="@1721718000" #<>
-                	#BB_time="-2 fortnights ago" #<>
+			BB_time="last year" #<>
+                	BB_time="2 fortnights ago" #<>
+                	BB_time="1 month ago" #<>
+                	BB_time="@1721718000" #<>
+                	BB_time="-2 fortnights ago" #<>
 
 		BB_file="${script_tmpdr}/${BB_time}"
 		touch -mt "$( date -d "${BB_time}" +%Y%m%d%H%M.%S )" \
@@ -717,9 +1009,9 @@ then
 
 		BB_list=( "$BB_file" )
 
-			#:;: #<>
-			#stat "$BB_file" #<>
-			#: "${Halt:?}" #<>
+			:;: #<>
+			stat "$BB_file" #<>
+			: "${Halt:?}" #<>
 
 
 		:;: '## For each found help topics file.'
@@ -815,8 +1107,8 @@ then
 		: '#+   at the beginning of \script_tmpfl, then print '
 		: '#+   that line.'
 
-			#set -x # <>
-			#declare -p script_strings #<>
+			set -x # <>
+			declare -p script_strings #<>
 
 		#! Bug, if the search string is NA in the topics file, then
 		#!   there s/b a 'NA' message output from the \help\ builtin
@@ -856,8 +1148,8 @@ then
 
 			else
 
-				#! Note, '||:' below is there because of
-				#!   errexit
+				#! Note, '||:' below is there because
+				#!   errexit is the work of the devil.
 				#! Note, deleted: case/esac with hex codes
 				#!   of ASCII chars
 
@@ -872,7 +1164,7 @@ then
 	fi
 	unset BB_XX BB_YY BB_ZZ BB_htopx_files
 
-		#printf '%s\n\n' "${Halt:?}" # <>
+		: "${Halt:?}" # <>
 
 
 
@@ -907,7 +1199,7 @@ then
 		set -- "${script_strings[0]:=}" '.*'
 	fi
 
-	#! Bug, reduce the length of the list according to 
+	#! Bug, reduce the length of the list according to
 	#!   posparms, eg, \ex\ or \sh\.
 
 
@@ -1022,7 +1314,7 @@ then
 		)
 		unset "${list_of_rows[@]}" CC_WW
 
-			#declare -a "${list_of_rows[@]}" #<>
+			declare -a "${list_of_rows[@]}" #<>
 
 		CC_VV=$((${#script_all_topix[@]}-1))
 		CC_XX=0
@@ -1051,7 +1343,7 @@ then
 				printf '%s\0' "${array_name[@]}"
 			)
 
-				#declare -p elements #<>
+				declare -p elements #<>
 
 			printf "$printf_format_string" "${elements[@]}"
 			echo
@@ -1076,7 +1368,7 @@ else
 	:;: '##   If the script\s first operand is neither a \-s\ nor a '
 	: '#+   \-l*\.'
 
-		#set -x # <>
+		set -x # <>
 
 
 	:;: '## If the number of strings is greater than zero.'
@@ -1094,17 +1386,14 @@ else
 			for DD_YY in "${script_all_topix[@]}"
 			do
 
-				#! Note, '||:' below is there because of
-				#!   errexit
-
 				grep -F "${grep_args[@]}" <<< "$DD_YY" ||:
 			done |
 				tr '\n' '\0'
 		)
 		unset DD_YY
 
-			#declare -p sublist_topics #<>
-			#exit 101 #<>
+			declare -p sublist_topics #<>
+			exit 101 #<>
 
 		for DD_ZZ in "${!sublist_topics[@]}"
 		do
