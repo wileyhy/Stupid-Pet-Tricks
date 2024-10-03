@@ -2,11 +2,9 @@
 #!
 #! Version 1.2
 #!
-#!   A re-implementation of `help -s`, `apropos` for bash's help builtin,
-#! written in bash 5.2.
-#!
-#!   There is an additional option added: '-l', for listing help topics.
-#! Lists can be printed vertically ('-l','-lv') or horizontally ('-lh').
+#!   For bash's help builtin, written in bash 5.2, there is an additional
+#! option added: '-l', for listing help topics. Lists can be printed
+#! vertically ('-l') or horizontally ('-L').
 #!
 #!   Where bash's `help` builtin performs bash's internal Pattern Matching
 #! syntax, this script accepts awk regular expressions. This difference
