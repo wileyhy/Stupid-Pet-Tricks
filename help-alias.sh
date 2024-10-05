@@ -2,11 +2,11 @@
 #!
 #! help-alias.sh, Version 1.3
 #!
-#!   For bash's help builtin, written in bash 5.2, there is an additional 
-#! option added: '-l', for listing help topics. Lists can be printed 
-#! vertically ('-l') or horizontally ('-L').
+#!   For bash\s help builtin, written in bash 5.2, there is an additional
+#! option added: \-l\, for listing help topics. Lists can be printed
+#! vertically (\-l\) or horizontally (\-L\).
 #!
-#!   Where bash's `help` builtin performs bash's internal Pattern Matching
+#!   Where bash\s `help` builtin performs bash\s internal Pattern Matching
 #! syntax, this script accepts awk regular expressions. This difference
 #! in functionality was an accidental design flaw in this script.
 #!
@@ -27,70 +27,70 @@
 #set -x # <>
 
 
-:;: '#########  Section A  ######### '
+#########  Section A  #########
 
-:;: '## Shell settings and options.'
+## Shell settings and options.
 set -e # <>
 set -u # <>
 set -o pipefail # <>
 shopt -s checkwinsize
 
-:;: '## Builtin \help\ must exist.'
-if ! type -a help | grep -q 'shell builtin'
+## Builtin \help\ must exist.
+if ! type -a help | grep -q "shell builtin"
 then
-	printf 'The %bhelp%b builtin is required by this' '\x60' '\x60'
+	printf "The %bhelp%b builtin is required by this" '\x60' '\x60'
 	printf ' script. Exiting.\n'
 fi
 
-:;: '## Variables, etc.'
+## Variables, etc.
 
-:;: '## \COLUMNS has been inconsistently inherited from parent processes.'
+## \COLUMNS has been inconsistently inherited from parent processes.
 LC_ALL=C
 export LC_ALL
 if      [[ -z ${COLUMNS:=} ]]
 then
-        : 'true' #<>
+        : "true" #<>
         COLUMNS=$(
                 stty -a |
-                        tr ';' '\n' |
+                        tr ";" '\n' |
                         awk '$1 ~ /columns/ { print $2 }'
         )
-else    : 'false' #<>
+else    : "false" #<>
 fi
 export COLUMNS
 
-:;: '## Name of the script.'
+## Name of the script.
 scr_name="help-alias.sh"
 scr_name=${scr_name//[$'\t\n ']/}
 
-:;: '## Notice for end user to quote their strings.'
+## Notice for end user to quote their strings.
 printf '\n%s: For best results, enclose search strings ' "${scr_name}"
 printf 'within single quotes.\n'
 
-:;: '## Each initial character of each help topic, stored in a list '
-: '#+   and an array.'
+## Each initial character of each help topic, stored in a list
+#+   and an array.
 list_initial_chars='abcdefghijklmprstuvw%(.:[{'
 readonly list_initial_chars
 unset BB CC tot arr
 BB=${list_initial_chars}
 tot=${#BB}
 
-:;: '## Break the list down character by character.'
+## Break the list down character by character.
 for (( CC=0; CC < tot; CC++ ))
 do
 	arr+=( "-${BB:0:1}" )
 	BB=${BB:1}
 done
 #array_init_chars=( "${arr[@]}" )
-#readonly array_init_chars 
+#readonly array_init_chars
 unset BB CC tot arr
 
-:;: '## A function and alias pair for the running builtin \help\.'
-: '#+   Function: \_help-exit()\.'
+## A function and alias pair for the running builtin \help\.
+#+   Function: \_help-exit()\.
 _help-exit(){
 	## COMMENT
 	shift
-	
+
 	## COMMENT
 	local -
 	set +e
@@ -115,13 +115,13 @@ _help-exit(){
 
 	## Readability.
 	echo
-	
+
 	## Get the exit code.
 	local fn_exit_code
 	builtin help "${fn_args[@]}" 1> /dev/null 2>&1
 	fn_exit_code=$?
 
-	## If a certain error statement is printed by default, then 
+	## If a certain error statement is printed by default, then
 	#+   also print some additional suggestions.
 	builtin help "${fn_args[@]}" 2>&1 		|
 		awk 	-v scr_nm="${scr_name}"		\
@@ -135,7 +135,7 @@ _help-exit(){
 			-v m6="${fn_msgs[6]}" 		\
 			-v m7="${fn_msgs[7]}" 		\
 			-v m8="${fn_msgs[8]}" 		\
-			-e '{ print }' 			\
+			-e "{ print }" 			\
 			-e '$0 ~ @/no help topics match/ {
 				  printf "\nSee also: \t%s, %s,\n", m0, m1
 				  printf "\t\t%s%s%s and \n", m2, pp1, m3
@@ -146,28 +146,28 @@ _help-exit(){
 	exit "${fn_exit_code}"
 }
 
-:;: '## Alias: \_help-exit\.'
+## Alias: \_help-exit\.
 #! Note, this alias lets \LINENO be expanded correctly.
 shopt -s expand_aliases
 alias _help-exit='_help-exit "[line-number:${LINENO}]"'
         set -x # <>
 	: "lineno:${LINENO}" #<>
 
-:;: '## Identify / define script input.'
+## Identify / define script input.
 orig_input=( "$@" )
 readonly orig_input
 scr_strings=( "${orig_input[@]}" )
 export scr_strings
-	:;: '## For debugging, if there aren\t any positional '
-	: '#+   parameters, then create some.'
-	#if (( ${#scr_strings[@]} == 0 )); then : 'true' #<>
+	## For debugging, if there aren\t any positional
+	#+   parameters, then create some.
+	#if (( ${#scr_strings[@]} == 0 )); then : "true" #<>
 	        #scr_strings=(echo builtin type info ls man which)
-	#else    : 'false' #<>
+	#else    : "false" #<>
 	#fi
 	#declare -p orig_input scr_strings
 	#exit "${LINENO}"
 
-:;: '## Define variables for use with formatting output.'
+## Define variables for use with formatting output.
 fmt_help=n
 fmt_manpgs=n
 list_descriptions=n
@@ -177,19 +177,19 @@ operands=()
 opt_strings=()
 print_vers_info=n
 
-:;: '## Categorize input into option strings and operands.'
+## Categorize input into option strings and operands.
 if
-	:;: '## If there is more than argument.'
+	## If there is more than argument.
 	(( ${#scr_strings[@]} > 0 ))
 then
-	:;: '## Then for each argument...'
+	## Then for each argument...
 	for LL in "${!scr_strings[@]}"
 	do
-		:;: '## Identify option strings.'
+		## Identify option strings.
 		if
-			:;: '## Anything that begins with a dash is an '
-			: '#+   option string, and count the null byte '
-			: '#+   as an option string.'
+			## Anything that begins with a dash is an
+			#+   option string, and count the null byte
+			#+   as an option string.
 			[[ ${scr_strings[LL]} =~ ^-+ ]] ||
 			[[ ${scr_strings[LL]} == "" ]]
 		then
@@ -201,21 +201,21 @@ then
 			#!   string below should be a script variable:
 			#!   it could change over time.
 
-			:;: '## Otherwise, the string begins with '
-			: '#+   exactly one dash and is longer than '
-			: '#+   one character.'
+			## Otherwise, the string begins with
+			#+   exactly one dash and is longer than
+			#+   one character.
 			[[ ${scr_strings[LL]} =~ ^-[dHhLlmsVv\?]+ ]]
 		then
-			:;: '## Break the string down into single '
-			: '#+   non-dash characters and test each.'
+			## Break the string down into single
+			#+   non-dash characters and test each.
 			#! Note, removing a single leading dash from
 			#!   each multi-character string (ie, "-sdm").
 			unset MM NN tot arr
 			MM=${scr_strings[LL]#-}
 			tot=${#MM}
 
-			:;: '## Break the list down character by '
-			: '#+   character.'
+			## Break the list down character by
+			#+   character.
 			for (( NN=0; NN < tot; NN++ ))
 			do
 				#! Note, adding the leading dash back on
@@ -235,9 +235,9 @@ then
 			opt_strings+=( "${arr[@]}" )
 			continue
 		else
-			:;: '## The list of option argument\s completed '
-			: '#+   when the first non-option argument is '
-			: '#+   encountered.'
+			## The list of option argument\s completed
+			#+   when the first non-option argument is
+			#+   encountered.
 			readonly opt_strings
 			break
 		fi
@@ -245,33 +245,33 @@ then
 	done
 	unset LL
 
-	:;: '## Define the \operands array.'
+	## Define the \operands array.
 	if
-		:;: '## If there are any remaining elements in '
-		: '#+   the \scr_strings array...'
+		## If there are any remaining elements in
+		#+   the \scr_strings array...
 		(( ${#scr_strings[@]} > 0 ))
 	then
-		: 'true' #<>
+		: "true" #<>
 
-		:;: '## ...then add those values into \operands.'
+		## ...then add those values into \operands.
 		operands=( "${scr_strings[@]}" )
 
-	else    : 'false' #<>
+	else    : "false" #<>
 	fi
 	unset scr_strings
 
-	:;: '## Any string among the \operands that begins with a dash '
-	: '#+   is silently ignored.'
+	## Any string among the \operands that begins with a dash
+	#+   is silently ignored.
 	for PP in "${!operands[@]}"
 	do
 		if 	[[ ${PP} =~ ^-+ ]]
 		then
-			: 'true' #<>
+			: "true" #<>
 
-			:;: '## If any are found, then remove them from '
-			: '#+   the array.'
+			## If any are found, then remove them from
+			#+   the array.
 			unset "operands[@]"
-		else	: 'false' #<>
+		else	: "false" #<>
 		fi
 	done
 fi
@@ -279,39 +279,39 @@ fi
 	#exit "${LINENO}" #<>
 	: "lineno:${LINENO}" #<>
 
-:;: '## Process the found option strings and operands.'
+## Process the found option strings and operands.
 
-:;: '## For input of zero arguments.'
+## For input of zero arguments.
 if 	(( ${#orig_input[@]} == 0 ))
 then
-	:;: '## Execute builtin \help\ without any input.'
+	## Execute builtin \help\ without any input.
 	_help-exit
 elif
-	:;: '## For input of one argument.'
+	## For input of one argument.
 	(( ${#orig_input[@]} == 1 ))
 then
-	:;: '## If the input is one of a few special strings, then '
-	: '#+   execute builtin \help\ with that special input.'
+	## If the input is one of a few special strings, then
+	#+   execute builtin \help\ with that special input.
 	if
 		[[ ${orig_input[*]} =~ ^$ ]] ||
 		[[ ${orig_input[*]} =~ ^--help$ ]] ||
 		[[ ${orig_input[*]} =~ ^-{1,}$ ]]
 	then
-		: 'true' #<>
+		: "true" #<>
 
-		:;: '## Valid or invalid input is possible.'
+		## Valid or invalid input is possible.
 		_help-exit "${orig_input[*]}"
-	else    : 'false' #<>
+	else    : "false" #<>
 	fi
 
-	:;: '## Otherwise, process the single argument '
-	: '#+   as they\ve been sorted as \opt_strings '
-	: '#+   or \operands.'
+	## Otherwise, process the single argument
+	#+   as they\ve been sorted as \opt_strings
+	#+   or \operands.
 
 		declare -p orig_input opt_strings operands #<>
 fi
 
-:;: '## For input of two or more arguments.'
+## For input of two or more arguments.
 for MM in "${opt_strings[@]}"
 do
 	if 	[[ ${MM} =~ ^-[Hh\?]$ ]]; then 	fmt_help=y
@@ -321,7 +321,7 @@ do
 	elif 	[[ ${MM} =~ ^-[Ll]$ ]]; then 	list_topx=y
 	elif 	[[ ${MM} =~ ^-[Vv]$ ]]; then 	print_vers_info=y
 	elif [[ ${MM} =~ ^-[[:alnum:]]$ ]]; then _help-exit \
-						    "${orig_input[@]}"	
+						    "${orig_input[@]}"
 	fi
 done
 unset MM
@@ -350,45 +350,45 @@ unset NN
 	declare -p list_summaries list_topx print_vers_info
 	#exit "${LINENO}"
 
-:;: '## If the \List\ option is not used, then execute the original '
-: '#+   command line as-is.'
+## If the \List\ option is not used, then execute the original
+#+   command line as-is.
 if	[[ ${list_topx} == n ]]
 then
-	: 'true' #<>
+	: "true" #<>
 
 	## COMMENT
 	_help-exit "${orig_input}"
-else 	: 'false' #<>
+else 	: "false" #<>
 fi
 
-:;: '## Otherwise, the list option is used.'
-	
+## Otherwise, the list option is used.
+
 	:;: "LINENO:${LINENO}" #<>
 
 	## Example of formatting for \--\ and \-m\
 	#
-	# help m v w | 
+	# help m v w |
 	#	awk 	'BEGIN { ii = 1 }
-	#		 $0 ~ @/[[:graph:]]\w*:\s/ { 
+	#		 $0 ~ @/[[:graph:]]\w*:\s/ {
 	#		 	printf "\n#########  %d  #########\n", ii
 	#			#ii++
 	#		 }
-	#		 { print }' | 
+	#		 { print }' |
 	#	more -e
 
 
-:;: '#########  Section B  ######### '
+#########  Section B  #########
 
-:;: '## Make sure that certain parameters can only be changed one place.'
-scr_find_args=( '(' -user "${UID}" -o -group "$( id -g )" ')' )
+## Make sure that certain parameters can only be changed one place.
+scr_find_args=( "(" -user "${UID}" -o -group "$( id -g )" ")" )
 scr_rm_cmd=( rm --one-file-system --preserve-root=all --force --verbose )
 
-:;: '## Define TMPDIR.'
+## Define TMPDIR.
 #! Note, defining directories with a trailing forward slash will effect
 #!   whether \[[\, \test\, \[\ and \stat\ dereference symlinks. However,
 #!   \realpath -e\ will still resolve such strings correctly.
 
-:;: '## From a list of possible values of TMPDIR, ordered by preference...'
+## From a list of possible values of TMPDIR, ordered by preference...
 #! Note, this list will be used later as search paths for \find\
 AA_UU=( "${TMPDIR:=""}"
         "${TEMP:=""}"
@@ -403,51 +403,51 @@ AA_UU=( "${TMPDIR:=""}"
         "${HOME}"
 )
 
-:;: '## From this list, above, generate a list of known temporary '
-: '#+   directories.'
+## From this list, above, generate a list of known temporary
+#+   directories.
 for     AA_WW in "${!AA_UU[@]}"
 do
-        :;: '## Begin major loop: Get a reliable absolute path.'
+        ## Begin major loop: Get a reliable absolute path.
         if      AA_VV=$( realpath -e "${AA_UU[AA_WW]}" 2> /dev/null )
         then
-                : 'true' #<>
+                : "true" #<>
 
-                :;: '## If the output of \realpath\ is a writeable '
-                : '#+   directory and not a symlink.'
+                ## If the output of \realpath\ is a writeable
+                #+   directory and not a symlink.
                 if      [[ -n ${AA_VV} ]] &&
                         [[ -d ${AA_VV} ]] &&
                         [[ -w ${AA_VV} ]] &&
                         ! [[ -h ${AA_VV} ]]
                 then
-                        :;: '## Begin by assuming all values will be '
-                        : '#+   added.'
+                        ## Begin by assuming all values will be
+                        #+   added.
                         AA_ZZ=yes
 
-                        :;: '## Begin minor loop: if an element from the '
-			: '#+   prior list is absent from the new list, '
-			: '#+   then add that element to the new list.'
+                        ## Begin minor loop: if an element from the
+			#+   prior list is absent from the new list,
+			#+   then add that element to the new list.
                         for     AA_TT in "${scr_temp_dirs[@]}"
                         do
-                                :;: '## Does the new directory match an '
-                                : '#+   existing directory?'
+                                ## Does the new directory match an
+                                #+   existing directory?
                                 if      [[ ${AA_VV} == "${AA_TT}" ]]
                                 then
-                                        :;: '## If yes, do not add that '
-                                        : '#+   value, and end the minor '
-                                        : '#+   loop.'
+                                        ## If yes, do not add that
+                                        #+   value, and end the minor
+                                        #+   loop.
                                         AA_ZZ=no
                                         break
                                 else
-                                        :;: '## If no, begin the next '
-                                        : '#+   iteration of the minor '
-                                        : '#+   loop.'
+                                        ## If no, begin the next
+                                        #+   iteration of the minor
+                                        #+   loop.
                                         continue
                                 fi
                         done
-                        :;: '## End minor loop.'
+                        ## End minor loop.
 
-                        :;: '## If the entire list has iterated without '
-                        : '#+   finding a match, then add it to the list.'
+                        ## If the entire list has iterated without
+                        #+   finding a match, then add it to the list.
                         if      [[ ${AA_ZZ} == yes ]]
                         then
                                 scr_temp_dirs+=( "${AA_VV}" )
@@ -455,18 +455,18 @@ do
                 fi
 
         else
-                : 'false' #<>
+                : "false" #<>
 
-                :;: '## If \realpath\ returns a zero length string, '
-                : '#+   then unset the current index \AA_WW.'
-                unset 'AA_UU[AA_WW]'
+                ## If \realpath\ returns a zero length string,
+                #+   then unset the current index \AA_WW.
+                unset "AA_UU[AA_WW]"
                 continue
         fi
 done
-:;: '## End major loop.'
+## End major loop.
 unset AA_TT AA_UU AA_VV AA_WW AA_ZZ
 
-:;: '## Finally define TMPDIR.'
+## Finally define TMPDIR.
 if      [[ ${#scr_temp_dirs[@]} -ne 0 ]]
 then
         TMPDIR="${TMPDIR:="${scr_temp_dirs[0]}"}"
@@ -479,18 +479,18 @@ fi
         #: "${Halt:?}" #<>
         #set -x # <>
 
-:;: '## Define groups of traps to be caught and handled.'
+## Define groups of traps to be caught and handled.
 scr_fnct_traps_1=( SIG{INT,QUIT,STOP,TERM,USR{1,2}} )
 scr_fnct_traps_2=( EXIT )
 
-:;: '## Define \_fn_trap()\.'
+## Define \_fn_trap()\.
 _fn_trap()
 {
-        :;: '## Reset traps.'
+        ## Reset traps.
         trap - "${scr_fnct_traps_1[@]}" "${scr_fnct_traps_2[@]}"
 
-        :;: '## Get a list of existing temporary directories from '
-	: '#+   this an prior executions.'
+        ## Get a list of existing temporary directories from
+	#+   this an prior executions.
         local -a TR_list
         mapfile -d "" -t TR_list < <(
                 find "${scr_temp_dirs[@]}" \
@@ -499,60 +499,60 @@ _fn_trap()
                         -print0 2> /dev/null
         )
 
-        :;: '## Begin loop: Delete any existing temporary directories.'
+        ## Begin loop: Delete any existing temporary directories.
         if      (( "${#TR_list[@]}" > 0 ))
         then
-                :;: '## If any are found, then for each directory name.'
+                ## If any are found, then for each directory name.
                 local TR_XX TR_YY TR_dir TR_rm
 
                 for TR_XX in "${!TR_list[@]}"
                 do
-                        :;: '## Define a usable variable name.'
+                        ## Define a usable variable name.
                         TR_dir="${TR_list[TR_XX]}"
 
-                        :;: '## If the directory is clearly from some '
-                        : '#+   run of this script, then add it to '
-                        : '#+   the deletion list \TR_rm.'
+                        ## If the directory is clearly from some
+                        #+   run of this script, then add it to
+                        #+   the deletion list \TR_rm.
                         if      [[ ${TR_dir} =~ _pid-[0-9]{3,9}.d$   ]] ||
                                 [[ ${TR_dir} =~ _ran-[a-zA-Z0-9]{8}_ ]] ||
                                 [[ ${TR_dir} =~ _hash-[0-9]{5,7}_    ]]
                         then
-                                : 'true' #<>
+                                : "true" #<>
 
-                                :;: '## Add the dir to the list.';:
+                                ## Add the dir to the list.
                                 mapfile -O "${TR_XX}" -t TR_rm \
                                         <<< "${TR_dir}"
 
-                                :;: '## Restart loop.';:
+                                ## Restart loop.
                                 continue
-                        else    : 'false' #<>
+                        else    : "false" #<>
                         fi
 
-                        :;: '## Otherwise, get a PID substring if one '
-                        : '#+   exists.'
+                        ## Otherwise, get a PID substring if one
+                        #+   exists.
                         TR_YY=${TR_dir##*_pid-}
                         TR_YY=${TR_YY%.d}
 
-                        :;: '## Is there a PID substring in \{TR_dir} ?'
+                        ## Is there a PID substring in \{TR_dir}\?
                         if      [[ -n ${TR_YY}        ]] &&
                                 [[ ${TR_YY} == [0-9]* ]] &&
                                 (( TR_YY > 300        )) &&
                                 (( TR_YY < 2**22      ))
                         then
-                                : 'true' #<>
+                                : "true" #<>
 
-                                :;: '## Then add the directory to the '
-                                : '#+   deletion list.'
+                                ## Then add the directory to the
+                                #+   deletion list.
                                 mapfile -O "${TR_XX}" -t TR_rm \
                                         <<< "${TR_dir}"
-                        else    : 'false' #<>
+                        else    : "false" #<>
                         fi
-                        :;: '## Restart loop.';:
+                        ## Restart loop.
                 done
-                :;: '## End loop.';:
+                ## End loop.
 
-                :;: '## If any found directories passed the filters, then '
-                : '#+   remove them.'
+                ## If any found directories passed the filters, then
+                #+   remove them.
                 if      (( ${#TR_rm[@]} > 0 ))
                 then
                         command -p "${scr_rm_cmd[@]}" --recursive \
@@ -561,44 +561,44 @@ _fn_trap()
                 fi
         fi
 
-        :;: '## Kill the parent process with signal \interrupt\.'
-        kill -s sigint "$BASHPID"
+        ## Kill the parent process with signal \interrupt\.
+        kill -s sigint "${BASHPID}"
 }
 
-:;: '## Define traps.'
-trap '_fn_trap; kill -s SIGINT "$BASHPID"' "${scr_fnct_traps_1[@]}"
+## Define traps.
+trap '_fn_trap; kill -s SIGINT "${BASHPID}"' "${scr_fnct_traps_1[@]}"
 #trap '_fn_trap; exit 0'              "${scr_fnct_traps_2[@]}"
 
         #: "${Halt:?}" #<>
         #set -x # <>
 
-:;: '## Define temporary directory.'
+## Define temporary directory.
 #! Note, using a `foo=$( ... )` syntax for assigning \AA_rad was
 #!   causing errexit to halt the script with an exit code of
 #!   141 because "subshells from a command substitution unset
 #!   set -e." Hence the use of \read\.
 
-r0=$RANDOM
+r0=${RANDOM}
 r1=$((  2**29  ))
 r2=$((  r0 + r1  ))
 r3=${PPID:-$((  r2  ))}
 r4=${BASHPID:-$((  r2 + 1  ))}
 r5=$((  r2 + 2  ))
 wkgdir="${HOME:?}/wkgdrir-${r3}-${r4}-${r5}.d"
-mkdir -v "${wkgdir:?}" || 
-	exit "$LINENO"
-unset r0 r1 r2 r3 r4 r5 
-	
-dd bs=4096 count=1 	if=/dev/urandom 	of="$wkgdir"/rnd.a
-strings -n1 		< "$wkgdir"/rnd.a 	> "$wkgdir"/rnd.b
-grep -vE '[[:punct:]]' 	< "$wkgdir"/rnd.b 	> "$wkgdir"/rnd.c
-grep -oE '[[:alnum:]]' 	< "$wkgdir"/rnd.c 	> "$wkgdir"/rnd.d
-tr -d '\n\t ' 		< "$wkgdir"/rnd.d 	> "$wkgdir"/rnd.e
-head -c 16 		< "$wkgdir"/rnd.e 	> "$wkgdir"/rnd.f
-read -rN16 -t1 AA_rad  < "$wkgdir"/rnd.f
+mkdir -v "${wkgdir:?}" ||
+	exit "${LINENO}"
+unset r0 r1 r2 r3 r4 r5
+
+dd bs=4096 count=1 	if=/dev/urandom 	of="${wkgdir}"/rnd.a
+strings -n1 		< "${wkgdir}"/rnd.a 	> "${wkgdir}"/rnd.b
+grep -vE "[[:punct:]]" 	< "${wkgdir}"/rnd.b 	> "${wkgdir}"/rnd.c
+grep -oE "[[:alnum:]]" 	< "${wkgdir}"/rnd.c 	> "${wkgdir}"/rnd.d
+tr -d "\n\t " 		< "${wkgdir}"/rnd.d 	> "${wkgdir}"/rnd.e
+head -c 16 		< "${wkgdir}"/rnd.e 	> "${wkgdir}"/rnd.f
+read -rN16 -t1 AA_rad  < "${wkgdir}"/rnd.f
 command -p "${scr_rm_cmd[@]:?}" --recursive \
 	-- "${wkgdir:?}"/rnd.{a..f} ||
-		exit "$LINENO"
+		exit "${LINENO}"
 unset wkgdir
 
 	declare -p AA_rad #<>
@@ -607,19 +607,19 @@ scr_tmpdr="${TMPDIR:?}/.temp_${scr_name:?}_ran-${AA_rad:?}_pid-$$.d"
 declare -rx scr_tmpdr AA_rad
 declare -p scr_tmpdr AA_rad opt_strings operands
 
-	#exit "$LINENO"
+	#exit "${LINENO}"
 
-:;: '## Define temporary data file.'
+## Define temporary data file.
 scr_tmpfl="${TMPDIR}/.bash_help_topics"
 declare -rx scr_tmpfl
 
-:;: '## Create the temporary directory (used for "time file," etc.).'
+## Create the temporary directory (used for "time file," etc.).
 mkdir "${scr_tmpdr}" ||
         exit "${LINENO}"
 
-:;: '## Delete any old help_topics files.'
+## Delete any old help_topics files.
 
-:;: '## Search for help_topics files.'
+## Search for help_topics files.
 mapfile -d "" -t BB_htopx_ffs < <(
 	find "${scr_temp_dirs[@]}" -maxdepth 1 \
 		"${scr_find_args[@]}" -type f \
@@ -628,76 +628,77 @@ mapfile -d "" -t BB_htopx_ffs < <(
 	declare -p BB_htopx_ffs #<>
 	#: "${Halt:?}" #<>
 
-:;: '## Remove any out of date help topics files.'
+## Remove any out of date help topics files.
 if      (( ${#BB_htopx_ffs[@]} > 0 ))
 then
-	:;: 'True.' #<>
+	: "true" #<>
 
-	:;: '## Configurable validity time frame.'
-	BB_time="yesterday"
+	## Configurable validity time frame.
+	BB_time=yesterday
 
 		#BB_time="1 month ago" #<>
 		#BB_time="@1721718000" #<>
 
-	BB_file="${scr_tmpdr}/${BB_time}"
-	touch -mt "$( date -d "${BB_time}" +%Y%m%d%H%M.%S )" \
+	BB_file=${scr_tmpdr}/${BB_time}
+	BB_date=$( date -d "${BB_time}" +%Y%m%d%H%M.%S )
+	touch -mt "${BB_date}"
 		"${BB_file}"
 
-	:;: '## Begin a list of files to be removed.'
+	## Begin a list of files to be removed.
 	BB_list=( "${BB_file}" )
 
 		:;: #<>
 		stat "${BB_file}" #<>
 		: "${Halt:?}" #<>
 
-	:;: '## For each found help topics file.'
+	## For each found help topics file.
 	for BB_XX in "${!BB_htopx_ffs[@]}"
 	do
-		:;: '## If the file\s older than the time frame...'
+		## If the file\s older than the time frame...
 		if ! [[ ${BB_htopx_ffs[BB_XX]} -nt "${BB_file}" ]]
 		then
 				:;: "older";: #<>
 
-			:;: '## Add it to the removal list.'
+			## Add it to the removal list.
 			BB_list+=("${BB_htopx_ffs[BB_XX]}")
 			unset "BB_htopx_ffs[BB_XX]"
 
-		else    : 'false' #<>
+		else    : "false" #<>
 		fi
 	done
 
-	:;: '## Delete each file on the list of files to '
-	: '#+   be removed.'
+	## Delete each file on the list of files to
+	#+   be removed.
 	"${scr_rm_cmd[@]}" -- "${BB_list[@]}" ||
 		exit "${LINENO}"
 
 	unset BB_time BB_file BB_list
 
-else    :;: 'False.' #<>
+else    : "false" #<>
 fi
 	:;: "number, BB_htopx_ffs: ${#BB_htopx_ffs[@]}" #<>
 
-:;: '## How many help topics files remain?'
+## How many help topics files remain?
 if      (( ${#BB_htopx_ffs[@]} == 1 ))
 then
-	:;: 'True.' #<>
+	: "true" #<>
 
-	:;: '## One file exists.'
+	## One file exists.
 	scr_tmpfl="${BB_htopx_ffs[*]}"
 
 else
-	:;: 'False.' #<>
-	:;: '## If multiple files exist, delete them.'
+	: "false" #<>
+	## If multiple files exist, delete them.
 
-	:;: '## Test number of existing files.'
+	## Test number of existing files.
 	if      (( ${#BB_htopx_ffs[@]} > 1 ))
 	then
-		:;: 'True.' #<>
+		: "true" #<>
 
 		"${scr_rm_cmd[@]}" -- "${BB_htopx_ffs[@]}" ||
 			exit "${LINENO}"
-	
-	else    :;: 'False.' #<>
+
+	else    : "false" #<>
 	fi
 
 	#+ Add to listing array
@@ -706,13 +707,13 @@ fi
 	declare -p BB_htopx_ffs #<>
 	#: "${Halt:?}" #<>
 
-:;: '## Get the current list of help topics from bash.'
+## Get the current list of help topics from bash.
 
-:;: '## Create a new data file.'
+## Create a new data file.
 COLUMNS=256 \
         builtin help \
                 > "${scr_tmpdr}/00_help-as-is"
-grep '^ ' 2>&1 \
+grep "^ " 2>&1 \
         < "${scr_tmpdr}/00_help-as-is" \
         > "${scr_tmpdr}/10_help-out"
 cut -c -128 \
@@ -722,12 +723,12 @@ cut -c 129- \
         < "${scr_tmpdr}/10_help-out" \
         > "${scr_tmpdr}/30_col-2"
 
-:;: '## Remove spaces, fix problematic data and sort.'
+## Remove spaces, fix problematic data and sort.
 awk '{ $1 = $1; print }' \
           "${scr_tmpdr}/20_col-1" \
           "${scr_tmpdr}/30_col-2" \
         > "${scr_tmpdr}/40_col-all-trimmed"
-sed 's,job_spec,%,' \
+sed "s,job_spec,%," \
         < "${scr_tmpdr}/40_col-all-trimmed" \
         > "${scr_tmpdr}/50_massaged"
 sort -d \
@@ -755,7 +756,7 @@ do
         ## Get the list of unique initial substrings, left to right.
         if      (( AA == 1 ))
         then
-                : 'true' #<>
+                : "true" #<>
 
                 ## For field depth one, the command is trivial.
                 awk '{ print $1 }' "${scr_tmpdr}/60_srtd" |
@@ -765,7 +766,7 @@ do
                                 > "${scr_tmpdr}/80_lvl-.*-substr"
                 continue
 
-        else    : 'false' #<>
+        else    : "false" #<>
         fi
 
         ## For field depths greater than one.
@@ -784,8 +785,8 @@ do
         mapfile -d " " -t awk_prg < <(
                 printf '$1 == xx { print'
                 printf ' $%s ' $( seq 1 "${AA}" ) |
-                        sed 's/  /, /g'
-                printf '}'
+                        sed "s/  /, /g"
+                printf "}"
         )
 
         ## COMMENT.
@@ -812,8 +813,8 @@ mapfile -O 1 -t scr_all_topix < "${scr_tmpdr}/90_all-substrings"
         declare -p scr_all_topix #<>
 
 
-:;: '## Match for an option flag: '
-: '#+   \-l\ or \-L\            -- Section C '
+## Match for an option flag:
+#+   \-l\ or \-L\            -- Section C
 ## \_ If opt_strings are
 #+	) only \--\
 #+	) only \-m\
@@ -822,35 +823,35 @@ mapfile -O 1 -t scr_all_topix < "${scr_tmpdr}/90_all-substrings"
 ## COMMENT
 if      [[ ${opt_strings[0]:-""} = "-s" ]]
 then
-        :;: '## List short descriptions of specified builtins.'
-        :;: '## Remove \-s\ from the array of \scr_strings.'
+        ## List short descriptions of specified builtins.
+        ## Remove \-s\ from the array of \scr_strings.
         unset "scr_strings[0]"
         scr_strings=("${scr_strings[@]}")
 
 	#####  SAVE  #####
 	# Formatting of \help -s\
-        #:;: '## Print info from the topics file and exit.'
+        #:;: ## Print info from the topics file and exit.
         #if      (( ${#scr_strings[@]} == 0 ))
         #then
                 #more -e "${scr_tmpfl}"
         #else
                 ##! Bug, this section had read from \scr_tmpfl, in
                 ##!   order to show full usage descriptions.
-                #:;: '## If the string appears in the first column or '
-                #: '#+   at the beginning of \scr_tmpfl, then print '
-                #: '#+   that line.'
+                ### If the string appears in the first column or
+                ##+   at the beginning of \scr_tmpfl, then print
+                ##+   that line.
                 #for BB_YY in "${scr_strings[@]}"
                 #do
                         #if [[ ${BB_YY} == @($|%|^|\(|\(\(|.|\[|\[\[|\{|\\|\|) ]]
                         #then
                                 ## shellcheck disable=SC2001
-                                #BB_ZZ=$( sed 's,.,\\\\&,g' <<< "${BB_YY}" )
+                                #BB_ZZ=$( sed "s,.,\\\\&,g" <<< "${BB_YY}" )
                         #else
                                 #BB_ZZ="${BB_YY}"
                         #fi
                         #if      [[ ${BB_ZZ} == \\\\% ]]
                         #then
-                                #BB_ZZ='job_spec'
+                                #BB_ZZ="job_spec"
                         #fi
                                 ##declare -p BB_ZZ scr_strings
                         #BB_XX=$(
@@ -862,7 +863,7 @@ then
                                 #printf '%s\n' "${BB_XX}"
                         #else
                                 #builtin help "${BB_YY}" 2>&1 |
-                                        #awk -F 'help:' \
+                                        #awk -F "help:" \
                                             #'{ print "  help:" $2 }' ||:
                         #fi
                 #done |
@@ -880,69 +881,69 @@ then
 	#!   Allow for that.
 
 
-        :;: '#########  Section C  ######### '
+        #########  Section C  #########
 
-        :;: '## Additional option: \-l\ for \list;\ \-lh\ and \-lv\ '
-        : '#+   for horizontal and vertical lists, respectively. '
-        : '#+   Defaults to vertical.'
+        ## Additional option: \-l\ for \list;\ \-lh\ and \-lv\
+        #+   for horizontal and vertical lists, respectively.
+        #+   Defaults to vertical.
         unset "scr_strings[0]"
         scr_strings=("${scr_strings[@]}")
 
-        :;: '## Initialize to zero...'
-        : '#+   ...Carriage Return Index.'
+        ## Initialize to zero...
+        #+   ...Carriage Return Index.
         cr_indx=0
 
-        : '#+   ...Topic Index.'
+        #+   ...Topic Index.
         tpc_indx=0
 
-        :;: '## Posparm \2 can be a filter. If empty, let it be any char.'
+        ## Posparm \2 can be a filter. If empty, let it be any char.
         if      [[ -z ${scr_strings[1]:-} ]]
         then
-                set -- "${scr_strings[0]:=}" '.*'
+                set -- "${scr_strings[0]:=}" ".*"
         fi
 
         #! Bug, reduce the length of the list according to
         #!   posparms, eg, \ex\ or \sh\.
 
-        :;: '## Get total Number of Help Topics for this run of this '
-        : '#+   script.'
+        ## Get total Number of Help Topics for this run of this
+        #+   script.
         ht_count=${#scr_all_topix[@]}
 
-        :;: '## Define Maximum String Length of Topics.'
+        ## Define Maximum String Length of Topics.
         strlen=$(
                 printf '%s\n' "${scr_all_topix[@]}" |
                         awk '{if (x < length($0)) x = length($0)}
                                         END {print x}'
         )
 
-        :;: '## Define Column Width.'
+        ## Define Column Width.
         col_width=$(( strlen + 3 ))
         printf_format_string=$(
-                printf '%%-%ds' "${col_width}"
+                printf "%%-%ds" "${col_width}"
         )
 
-        :;: '## Define maximum and total numbers of columns.'
+        ## Define maximum and total numbers of columns.
         max_columns=$(( ${COLUMNS:-80} / col_width ))
         all_columns=${max_columns}
 
         if      (( max_columns > ht_count ))
         then
-                : 'true' #<>
+                : "true" #<>
 
                 all_columns=${ht_count}
 
-        else    : 'false' #<>
+        else    : "false" #<>
         fi
 
-        :;: '## Print a list.'
+        ## Print a list.
         if      [[ ${scr_strings[0]} = "-lh" ]]
         then
-                :;: '## Print a list favoring a horizontal sequence.'
+                ## Print a list favoring a horizontal sequence.
 
-                :;: '## For each index of the list of topics.'
+                ## For each index of the list of topics.
                 for tpc_indx in "${!scr_all_topix[@]}"
                 do
-                        :;: '## If the ...'
+                        ## If the ...
                         if      (( cr_indx == all_columns ))
                         then
                                 echo
@@ -959,27 +960,27 @@ then
         elif
                 [[ ${scr_strings[0]} = @(-l|-lv) ]]
         then
-                :;: '## Print a list favoring a vertical sequence.'
+                ## Print a list favoring a vertical sequence.
 
-                :;: '## Get the Number of Full Rows.'
+                ## Get the Number of Full Rows.
                 full_rows=$(( ht_count / all_columns ))
 
-                :;: '## Get the number of topics in any partial row (modulo).'
+                ## Get the number of topics in any partial row (modulo).
                 row_rem=$(( ht_count % all_columns ))
 
-                :;: '## Record whether there is a Partial Row.'
+                ## Record whether there is a Partial Row.
                 part_rows=0
 
                 if      (( row_rem > 0 ))
                 then
-                        : 'true' #<>
+                        : "true" #<>
 
                         part_rows=1
 
-                else    : 'false' #<>
+                else    : "false" #<>
                 fi
 
-                :;: '## Get the total number of Rows.'
+                ## Get the total number of Rows.
                 all_rows=$((  full_rows + part_rows  ))
 
                 mapfile -d "" -t list_of_rows < <(
@@ -988,7 +989,6 @@ then
                         do
                                 printf '%s\0' "__row__${CC_WW}"
                         done
-                        unset CC_UU
                 )
                 unset "${list_of_rows[@]}" CC_WW
 
@@ -999,7 +999,7 @@ then
 
                 for     (( CC_YY=0; CC_YY <= CC_VV; ++CC_YY ))
                 do
-                        printf -v "__row__${CC_XX}[${cr_indx}]" '%s' \
+                        printf -v "__row__${CC_XX}[${cr_indx}]" "%s" \
                                 "${scr_all_topix[CC_YY]}"
 
                         if      (( CC_XX == $((  all_rows - 1  )) ))
