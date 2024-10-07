@@ -78,6 +78,8 @@ tot=${#BB}
 ## Break the list down character by character.
 for (( CC=0; CC < tot; CC++ ))
 do
+        #! Bug, adding dashes.
+
 	arr+=( "-${BB:0:1}" )
 	BB=${BB:1}
 done
