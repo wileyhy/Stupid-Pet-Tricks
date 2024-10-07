@@ -118,6 +118,8 @@ _help-exit(){
 	## Readability.
 	echo
 
+        #! Bug, these x2 next cmds are identical: use a fn.
+
 	## Get the exit code.
 	local fn_exit_code
 	builtin help "${fn_args[@]}" 1> /dev/null 2>&1
