@@ -1,0 +1,134 @@
+## help-alias.sh
+#+
+#+
+#+ Special to this script.
+#+
+#+   0) New commandline option, \-l\, list help topics.
+
+	- search opt_strings for \-[Ll]\
+		- define opt-strings
+
+#+   1) Any lengthy output is piped into \more -e\ for readability.
+
+	- centralize any execution of builtin \help\ and pipe it into
+	    \more -e\.
+
+#+   2) Output of multiple \help\ topic descriptions, in \help\ format or
+#+       in man page format, are formatted to be more easily readable.
+#+       In particular, there\s vertical white space and a horizonatal
+#+       deliniator (\#####\) between topics and index numbers per topic.
+
+	- process output of builtin \help\
+		- based on what?
+			- \--\ and no short options produces help topic 
+				content.
+			- \-m\ produces man page formatting
+		- how?
+			- use awk to insert formatting depending on
+				default output of builtin \help\?
+				- is possible
+
+			- isolate each operand input and execute
+				each of them separately then
+				concatenate multiple outputs?
+				- probably slower.
+
+			- \builtin help -d e\ lists x6 topics.
+
+		
+
+#+   3) Input strings \-h\, \-H\ and \-?\ are recognized as synonymous
+#+       with \--help\, and the help message for builtin \help\ is
+#+       printed.
+
+	- search opt_strings for \-[Hh\?]\
+		- define opt-strings
+
+#+   4) Input strings \-v\ and \-V\ are recognized as synonymous with
+#+       \--version\ and the version information for the on-disk version
+#+       of the Bash system binary is printed.
+
+	- search opt_strings for \-[Vv]\
+		- define opt-strings
+
+#+   5) A semi-persistent data file, "${TMPDIR}/.bash_help_topics" is used.
+#+       It is renewed based on age or inaccuracy.
+
+	- implementation complete
+
+
+#+   6) Information for any current list of help topics is based on any
+#+       current ouptut of builtin \help\ (ie, \compgen\ is not used).
+
+	- implementation complete
+		- only use if \compgen\ is NA.
+
+	- Get topics list from \compgen\.
+
+#+   7) Add additional info search suggestions when the output from the
+#+       \help\ builtin reads, \no help topics match\.
+
+		- based on what?
+			- \--\ and no short options produces help topic 
+				content.
+			- \-m\ produces man page formatting
+		- how?
+			- use awk to insert formatting depending on
+				default output of builtin \help\?
+				- is possible
+
+#+   ) Search topics according to regexp, rather than according to shell
+#+       shell pattern.
+#!	-- sb an option. the default sb available. search by regexp is 
+#!		an accident of using awk.
+
+		- based on what?
+			- user configuration.
+		- how?
+			- implement both
+			- careful observation is necessary of the 
+				behavior of the existing \help\
+				builtin.
+
+
+#+   ) The outputs of \help -d\ and \help -s\ are lists of desrcriptions
+#+       and summaries, respectively, rather than the default output page.
+
+		- based on what
+			- \operands
+		- how?
+			- call each relevant help topic individually?
+				- would require processing of operands
+			- prep a list of all outputs for both \-d\ and
+				\-s\ and simply \grep\ them?
+				- if the output is created once, why not
+					save it?
+
+#+   ) Remove useless information that is printed when the output from
+#+       the \help\ builtin reads, \no help topics match\, specifically
+#+       strings like \man -k -\ (re punctuation and or or two
+#+       character strings).
+
+#+   ) process multiple opt_strings simultaneously?
+
+	- how are malformed inputs detected?
+		- input validation
+		- filter out command codes and other non-graphical ASCII 
+			sequences.
+
+#+   ) Ability to enable / disable any one enhancement individually.
+
+#+
+#+
+#+
+
+
+#+ Special to my style of scripting.
+#+
+#+   ) Xtrace shows line number where logic thread left main section
+#+       of script.
+#+   ) Arguments to binary \rm\ are coded as a single array for consistency.
+#+   WY) All data is saved on disk in an temporary directory. All temporary
+#+       directories are deleted at the end of each script execution.
+#+   ) "${Halt:?}" is used.
+#+
