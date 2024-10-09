@@ -1,0 +1,150 @@
+## Implementation Structure
+#+
+#+
+#+ help-alias.sh
+#+
+#+ 	Feature		Technique		Default
+#+	#######		#########		#######
+
+	)		Configuration of enhancements.
+						- NA
+
+	WY)		Non-persistent per-execution data directories.
+						- NA / within bash.
+
+	6a)		Get topics list from \compgen\.
+						- NA / within bash.
+
+	6b)		Get topics list from output of builtin \help\.
+						- NA
+
+	5)		Semi-persistent data file.
+						- NA
+
+	)		Input validation
+				- to process complex input strings.
+						- NA
+
+	0,3,4) 		Input processing - Define \opt_strings
+						- NA / within bash.
+
+	)		Input processing - Define operands
+				- to print \help -[ds]\ reasonably.
+						- NA / within bash.
+
+	) 		Define complex inputs.
+						- NA
+
+	1)		Exec \help | more -e\ once at end.
+						- NA
+
+	) 		Use awk to remove useless suggestions from error
+				messages.
+						- NA
+
+	7)		Use awk to add suggestions depending on error messages.
+						- NA
+
+	2)		Use awk to format output.
+						- NA
+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
+#+
