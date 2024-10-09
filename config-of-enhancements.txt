@@ -1,0 +1,31 @@
+## Enablement of Enhancements.
+#+
+#+
+#+ help-alias.sh
+#+
+
+  #	enable=( [0]="_any_enhancements_" )
+  #	enable+=( [1]="_manual_per_execution_data_directories_" )
+  #	enable+=( [2]="_option_short_l_" )
+  #	enable+=( [3]="_option_short_L_" )
+  #	enable+=( [4]="_option_long_list_" )
+  #	enable+=( [5]="_option_short_h_" )
+  #	enable+=( [6]="_option_short_H_" )
+  #	enable+=( [7]="_option_short_question_mark_" )
+  #	enable+=( [8]="_option_long_summary_" )
+  #	enable+=( [9]="_option_long_description_" )
+  #	enable+=( [10]="_option_long_manpg_" )
+  #	enable+=( [11]="_manual_identify_help_topics_" )
+  #	enable+=( [12]="_semi_persistent_data_file_" )
+  #	enable+=( [13]="_input_processing_options_" )
+  #	enable+=( [14]="_input_processing_operands_" )
+  #	enable+=( [15]="_input_complex_trings_" )
+  #	enable+=( [16]="_input_validation_" )
+  #	enable+=( [17]="_output_format_more_e_" )
+  #	enable+=( [18]="_output_format_remove_suggestions_punctuation_" )
+  #	enable+=( [19]="_output_format_remove_suggestions_single_char_" )
+  #	enable+=( [20]="_output_format_remove_suggestions_double_char_" )
+  #	enable+=( [21]="_output_format_add_suggestions_for_newbies_" )
+  #	enable+=( [22]="_output_format_reminder_quote_strings_" )
+  #	enable+=( [23]="_output_format_whitespace_delimiters_" )
+  #	enable+=( "_all_enhancements_" )
