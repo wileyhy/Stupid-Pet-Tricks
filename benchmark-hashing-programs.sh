@@ -1,5 +1,5 @@
 #!/bin/bash
-# benchmark-hashing-bins.sh
+# benchmark-hashing-programs.sh
 # Wiley Young 2025 GPLv3
 #
 # Compare hash speeds at nane-seconds per byte, averaged over
